@@ -1,0 +1,97 @@
+release:
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+- id: ssm-run
+  main: ./cmd/ssm-run/main.go
+  binary: ssm-run
+  goos:
+    - windows
+    - darwin
+    - linux
+  goarch:
+    - amd64
+  env:
+  - CGO_ENABLED=0
+- id: ssm-session
+  main: ./cmd/ssm-session/main.go
+  binary: ssm-session
+  goos:
+    - windows
+    - darwin
+    - linux
+  goarch:
+    - amd64
+  env:
+  - CGO_ENABLED=0
+
+archives:
+- builds:
+  - ssm-run
+  - ssm-session
+  replacements:
+    darwin: Darwin
+    linux: Linux
+    windows: Windows
+    amd64: x86_64
+  format: tar.gz
+  format_overrides:
+    - goos: windows
+      format: zip
+
+      #brews:
+      #  - github:
+      #      owner: disneystreaming
+      #      name: homebrew-ssm-helpers
+      #    homepage: "https://github.com/disneystreaming/ssm-helpers"
+      #    description: "Help manage systems with AWS Systems Manager with management helpers."
+      #    dependencies:
+      #      - awscli
+      #
+      #dockers:
+      #  - binaries:
+      #    - ssm-run
+      #    goos: linux
+      #    dockerfile: Dockerfile.ssm-run
+      #    image_templates:
+      #    - "disneystreaming/ssm-run:latest"
+      #    - "disneystreaming/ssm-run:{{ .Tag }}"
+      #    - "disneystreaming/ssm-run:{{ .Major }}"
+      #    - "disneystreaming/ssm-run:{{ .Major }}.{{ .Minor }}"
+      #  - binaries:
+      #    - ssm-session
+      #    goos: linux
+      #    dockerfile: Dockerfile.ssm-session
+      #    image_templates:
+      #    - "disneystreaming/ssm-session:latest"
+      #    - "disneystreaming/ssm-session:{{ .Tag }}"
+      #    - "disneystreaming/ssm-session:{{ .Major }}"
+      #    - "disneystreaming/ssm-session:{{ .Major }}.{{ .Minor }}"
+
+nfpms:
+  - license: MIT
+    maintainer: Disney Streaming Services
+    description: Helper tools for AWS Systems Manager.
+    homepage: https://github.com/disneystreaming/ssm-helpers
+    suggests:
+      - awscli
+      - session-manager-plugin
+    formats:
+      - rpm
+      - deb
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ .Tag }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+    - '^docs:'
+    - '^test:'
