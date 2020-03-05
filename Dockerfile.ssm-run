@@ -1,0 +1,3 @@
+FROM scratch
+COPY ssm-run /
+ENTRYPOINT ["/ssm-run"]
