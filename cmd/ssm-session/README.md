@@ -16,7 +16,7 @@ Note: multiple regions and accounts takes longer for API calls.
 
 ### basic usage
 
-By default, `ssm-session` will attempt to search/connect for instances in your default AWS profile (specified in your ~/.aws/config, or via the `AWS_PROFILE` environment variable if set), and the default region linked to that profile (or the `AWS_REGION` environment variable, if set). 
+By default, `ssm-session` will attempt to search/connect for instances in your default AWS profile (specified in your ~/.aws/config, or via the `AWS_PROFILE` environment variable if set), and the default region linked to that profile (or the `AWS_REGION` environment variable, if set).
 
 The order of preference for profile/region settings is set as follows:
 
@@ -32,16 +32,16 @@ Take careful note that if multiple regions *and* profiles are specified, `ssm-ru
 
 For example, using the flags `--profiles foo,bar,baz --regions us-east-1,us-west-2,eu-east-1` will target instances in each of the profile/region combinations:
 
-	foo@us-east-1, foo@us-west-2, foo@eu-east-1
-	bar@us-east-1, bar@us-west-2, bar@eu-east-1
-	baz@us-east-1, baz@us-west-2, baz@eu-east-1
+    foo@us-east-1, foo@us-west-2, foo@eu-east-1
+    bar@us-east-1, bar@us-west-2, bar@eu-east-1
+    baz@us-east-1, baz@us-west-2, baz@eu-east-1
 
 As such, please be careful when doing so and when using the `--all-profiles` flag.
 
 If a region is not specified, you will receive the following warning, but execution will continue:
 
 ```
-WARNING	No AWS region setting found. Will default to the region linked to any profile in use.
+WARNING No AWS region setting found. Will default to the region linked to any profile in use.
 ```
 
 Any number of tags can be specified using multiple `-t` flags. The instance data for that tag will be displayed as an additional column in the selection dialog if multiple instances are found. Columns for Instance ID, Region, and Profile are always displayed.
@@ -64,15 +64,15 @@ By default, if no instance or filters are specified, `ssm-session` will target a
 > ./ssm-session
 
 INFO    Found 7 usable instances.
-       Instance ID   Region	Profile 
+       Instance ID   Region Profile
 ? Select the instances to which you want to connect:  [Use arrows to move, space to select, type to filter]
-> [ ]  i-0d770cb     us-east-1  sandbox  
-  [ ]  i-0b75ad5     us-east-1  sandbox  
-  [ ]  i-0fb5f18     us-east-1  sandbox  
-  [ ]  i-01e6823     us-east-1  sandbox   
-  [ ]  i-0ab2a85     us-east-1  sandbox
-  [ ]  i-0d3558e     us-east-1  sandbox    
-  [ ]  i-026a8f0     us-east-1  sandbox    
+> [ ]  i-0d770cb     us-east-1  profile1
+  [ ]  i-0b75ad5     us-east-1  profile1
+  [ ]  i-0fb5f18     us-east-1  profile1
+  [ ]  i-01e6823     us-east-1  profile1
+  [ ]  i-0ab2a85     us-east-1  profile1
+  [ ]  i-0d3558e     us-east-1  profile1
+  [ ]  i-026a8f0     us-east-1  profile1
 ```
 
 #### searching for instances with tag-based filters
@@ -80,97 +80,97 @@ INFO    Found 7 usable instances.
 Tag-based filtering can also be applied to your search results (including if you manually specify instance names). These filters are additive, which means that each filter you provide will prune down your results to include only instances that match *all* of the provided filters.
 
 ```
-> ./ssm-session -p myaccount -f env=prod -f app=myapp
+> ./ssm-session -p profile1 -f env=prod -f app=myapp
 
 INFO    Found 6 usable instances.
        Instance ID  Region     Profile
 ? Select the instances to which you want to connect:  [Use arrows to move, space to select, type to filter]
-> [ ]  i-7268418e   us-east-1  myaccount 
-  [ ]  i-7b6f4687   us-east-1  myaccount
-  [ ]  i-9cdd364a   us-east-1  myaccount
-  [ ]  i-ccdc371a   us-east-1  myaccount
-  [ ]  i-1289eeef   us-east-1  myaccount
-  [ ]  i-2f96f1d2   us-east-1  myaccount
+> [ ]  i-7268418e   us-east-1  profile1
+  [ ]  i-7b6f4687   us-east-1  profile1
+  [ ]  i-9cdd364a   us-east-1  profile1
+  [ ]  i-ccdc371a   us-east-1  profile1
+  [ ]  i-1289eeef   us-east-1  profile1
+  [ ]  i-2f96f1d2   us-east-1  profile1
 ```
 
 If we add those columns to the instance list using the `-t` option, we can see the effect in practice:
 
 ```
-> ./ssm-session -p myaccount -f env=prod -f app=myapp -t app -t env
+> ./ssm-session -p profile1 -f env=prod -f app=myapp -t app -t env
 
-INFO    Found 6 usable instances.                    
-       Instance ID  Region     Profile   app	env  
+INFO    Found 6 usable instances.
+       Instance ID  Region     Profile   app    env
 ? Select the instances to which you want to connect:  [Use arrows to move, space to select, type to filter]:
-  [ ]  i-7b6f4687   us-east-1  myaccount myapp	prod
-  [ ]  i-7b6f4687   us-east-1  myaccount myapp	prod
-  [ ]  i-9cdd364a   us-east-1  myaccount myapp	prod
-  [ ]  i-ccdc371a   us-east-1  myaccount myapp	prod
-  [ ]  i-1289eeef   us-east-1  myaccount myapp 	prod
-  [ ]  i-2f96f1d2   us-east-1  myaccount myapp	prod
+  [ ]  i-7b6f4687   us-east-1  profile1 myapp  prod
+  [ ]  i-7b6f4687   us-east-1  profile1 myapp  prod
+  [ ]  i-9cdd364a   us-east-1  profile1 myapp  prod
+  [ ]  i-ccdc371a   us-east-1  profile1 myapp  prod
+  [ ]  i-1289eeef   us-east-1  profile1 myapp  prod
+  [ ]  i-2f96f1d2   us-east-1  profile1 myapp  prod
 ```
 
 #### searching for instances in multiple accounts and/or regions
 
 ```
-> ./ssm-session -p sandbox -r us-east-1,us-west-2
+> ./ssm-session -p profile1 -r us-east-1,us-west-2
 
 INFO    Found 9 usable instances.
-       Instance ID  		Region     Profile       
+       Instance ID          Region     Profile
 ? Select the instances to which you want to connect:  [Use arrows to move, space to select, type to filter]
-> [ ]  i-0d770cb81ae0fc316  	us-east-1  sandbox  
-  [ ]  i-0b75ad53689daabf8	us-east-1  sandbox  
-  [ ]  i-0f267dedb9a979fd1 	us-west-2  sandbox  
-  [ ]  i-0fb5f186125becc0d  	us-east-1  sandbox   
-  [ ]  i-01e6823b89fd224b2  	us-east-1  sandbox   
-  [ ]  i-0ab2a8562dda37865  	us-east-1  sandbox
-  [ ]  i-0d3558e702b02e3dc  	us-east-1  sandbox   
-  [ ]  i-026a8f0ed1ace92aa  	us-east-1  sandbox  
+> [ ]  i-0d770cb81ae0fc316      us-east-1  profile1
+  [ ]  i-0b75ad53689daabf8      us-east-1  profile1
+  [ ]  i-0f267dedb9a979fd1      us-west-2  profile1
+  [ ]  i-0fb5f186125becc0d      us-east-1  profile1
+  [ ]  i-01e6823b89fd224b2      us-east-1  profile1
+  [ ]  i-0ab2a8562dda37865      us-east-1  profile1
+  [ ]  i-0d3558e702b02e3dc      us-east-1  profile1
+  [ ]  i-026a8f0ed1ace92aa      us-east-1  profile1
 ```
 
 ### usage flags
 
 ```
 -all-profiles
-	[USE WITH CAUTION] Parse through ~/.aws/config to target all profiles.
+    [USE WITH CAUTION] Parse through ~/.aws/config to target all profiles.
 -dry-run
-	Retrieve the list of profiles, regions, and instances on which sessions would be started.
+    Retrieve the list of profiles, regions, and instances on which sessions would be started.
 -f value
-	--filter (shorthand)
+    --filter (shorthand)
 -filter value
-	Filter instances based on tag value. Tags are evaluated with logical AND (instances must match all tags).
-	Multiple allowed, delimited by commas (e.g. env=dev,foo=bar)
+    Filter instances based on tag value. Tags are evaluated with logical AND (instances must match all tags).
+    Multiple allowed, delimited by commas (e.g. env=dev,foo=bar)
 -i value
-	--instances (shorthand)
+    --instances (shorthand)
 -instances value
-	Specify what instance IDs you want to target.
-	Multiple allowed, delimited by commas (e.g. --instances i-12345,i-23456)
+    Specify what instance IDs you want to target.
+    Multiple allowed, delimited by commas (e.g. --instances i-12345,i-23456)
 -limit int
-	Set a limit for the number of instance results returned per profile/region combination. (default 20)
+    Set a limit for the number of instance results returned per profile/region combination. (default 20)
 -log-level int
-	Sets verbosity of output:
-	0 = quiet, 1 = terse, 2 = standard, 3 = debug (default 2)
+    Sets verbosity of output:
+    0 = quiet, 1 = terse, 2 = standard, 3 = debug (default 2)
 -p value
-	--profiles (shorthand)
+    --profiles (shorthand)
 -profiles value
-	Specify a specific profile to use with your API calls.
-	Multiple allowed, delimited by commas (e.g. --profiles account1,account2)
+    Specify a specific profile to use with your API calls.
+    Multiple allowed, delimited by commas (e.g. --profiles profile1,profile2)
 -r value
-	--regions (shorthand)
+    --regions (shorthand)
 -regions value
-	Specify a specific region to use with your API calls.
-	This option will override any profile settings in your config file.
-	Multiple allowed, delimited by commas (e.g. --regions us-east-1,us-west-2)
+    Specify a specific region to use with your API calls.
+    This option will override any profile settings in your config file.
+    Multiple allowed, delimited by commas (e.g. --regions us-east-1,us-west-2)
 
-	[NOTE] Mixing --profiles and --regions will result in your command targeting every matching instance in the selected profiles and regions.
-	e.g., "--profiles foo,bar,baz --regions us-east-1,us-west-2,eu-east-1" will target instances in each of the profile/region combinations:
-		"foo@us-east-1, foo@us-west-2, foo@eu-east-1"
-		"bar@us-east-1, bar@us-west-2, bar@eu-east-1"
-		"baz@us-east-1, baz@us-west-2, baz@eu-east-1"
-	Please be careful.
+    [NOTE] Mixing --profiles and --regions will result in your command targeting every matching instance in the selected profiles and regions.
+    e.g., "--profiles foo,bar,baz --regions us-east-1,us-west-2,eu-east-1" will target instances in each of the profile/region combinations:
+        "foo@us-east-1, foo@us-west-2, foo@eu-east-1"
+        "bar@us-east-1, bar@us-west-2, bar@eu-east-1"
+        "baz@us-east-1, baz@us-west-2, baz@eu-east-1"
+    Please be careful.
 -session-name string
-	Specify a name for the tmux session created when multiple instances are selected (default "ssm-session")
+    Specify a name for the tmux session created when multiple instances are selected (default "ssm-session")
 -t value
-	--tag (shorthand)
+    --tag (shorthand)
 -tag value
-	Adds the specified tag as an additional column to be displayed during the instance selection prompt.
+    Adds the specified tag as an additional column to be displayed during the instance selection prompt.
 ```

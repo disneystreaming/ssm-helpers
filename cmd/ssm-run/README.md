@@ -12,7 +12,7 @@ Run multiple commands in the same shell context (e.g. `-c 'uptime;hostname'`) or
 
 ### basic usage
 
-By default, `ssm-run` will attempt to search/connect for instances in your default AWS profile (specified in your ~/.aws/config, or via the `AWS_PROFILE` environment variable if set), and the default region linked to that profile (or the `AWS_REGION` environment variable, if set). 
+By default, `ssm-run` will attempt to search/connect for instances in your default AWS profile (specified in your ~/.aws/config, or via the `AWS_PROFILE` environment variable if set), and the default region linked to that profile (or the `AWS_REGION` environment variable, if set).
 
 The order of preference for profile/region settings is set as follows:
 
@@ -48,9 +48,9 @@ The use of the `--limit` flag, if set, will result in your command being execute
 > ./ssm-run -i i-12345 -c "uname -a"
 
 INFO    Command(s) to be executed: uname -a
-INFO    Fetched 1 instances for account [sandbox] in [us-east-1].
+INFO    Fetched 1 instances for account [profile1] in [us-east-1].
 INFO    Instance ID              Region          Profile         Status
-INFO    i-12345					 us-east-1       sandbox         Success
+INFO    i-12345					 us-east-1       profile1         Success
 INFO    Execution results: 1 SUCCESS, 0 FAILED
 ```
 
@@ -60,9 +60,9 @@ Running multiple commands is easy; just separate your commands with semicolons (
 > ./ssm-run -i i-12345 -c "uname -a; hostname; ifconfig"
 
 INFO    Command(s) to be executed: uname -a, hostname, ifconfig
-INFO    Fetched 1 instances for account [sandbox] in [us-east-1].
+INFO    Fetched 1 instances for account [profile1] in [us-east-1].
 INFO    Instance ID              Region          Profile         Status
-INFO    i-12345					 us-east-1       sandbox         Success
+INFO    i-12345					 us-east-1       profile1         Success
 INFO    Execution results: 1 SUCCESS, 0 FAILED
 ```
 
@@ -72,10 +72,10 @@ INFO    Execution results: 1 SUCCESS, 0 FAILED
 > ./ssm-run -i i-12345,i-67890 -c "uname -a"
 
 INFO    Command(s) to be executed: uname -a
-INFO    Fetched 2 instances for account [sandbox] in [us-east-1].
+INFO    Fetched 2 instances for account [profile1] in [us-east-1].
 INFO    Instance ID              Region          Profile         Status
-INFO    i-12345					 us-east-1       sandbox         Success
-INFO    i-67890					 us-east-1       sandbox         Success
+INFO    i-12345					 us-east-1       profile1         Success
+INFO    i-67890					 us-east-1       profile1         Success
 INFO    Execution results: 2 SUCCESS, 0 FAILED
 ```
 
@@ -87,13 +87,13 @@ By default, if no instance or filters are specified, `ssm-run` will target all i
 > ./ssm-run -c "uname -a"
 
 INFO    Command(s) to be executed: uname -a
-INFO    Fetched 5 instances for account [sandbox] in [us-east-1].
+INFO    Fetched 5 instances for account [profile1] in [us-east-1].
 INFO    Instance ID              Region          Profile         Status
-INFO    i-054151b14a3cf1234      us-east-1       sandbox         Success
-INFO    i-022572ac837c21234      us-east-1       sandbox         Success
-INFO    i-08f4076ee1fa41234      us-east-1       sandbox         Success
-INFO    i-0dfbe7c5db0b21234      us-east-1       sandbox         Success
-INFO    i-064937fab1f211234      us-east-1       sandbox         Success
+INFO    i-054151b14a3cf1234      us-east-1       profile1         Success
+INFO    i-022572ac837c21234      us-east-1       profile1         Success
+INFO    i-08f4076ee1fa41234      us-east-1       profile1         Success
+INFO    i-0dfbe7c5db0b21234      us-east-1       profile1         Success
+INFO    i-064937fab1f211234      us-east-1       profile1         Success
 INFO    Execution results: 5 SUCCESS, 0 FAILED
 ```
 
@@ -103,15 +103,15 @@ INFO    Execution results: 5 SUCCESS, 0 FAILED
 > ./ssm-run -c "uname -a" -r us-east-1,us-west-2
 
 INFO    Command(s) to be executed: uname -a
-INFO    Fetched 5 instances for account [sandbox] in [us-east-1].
-INFO    Fetched 1 instances for account [sandbox] in [us-west-2].
+INFO    Fetched 5 instances for account [profile1] in [us-east-1].
+INFO    Fetched 1 instances for account [profile1] in [us-west-2].
 INFO    Instance ID              Region          Profile         Status
-INFO    i-054151b14a3cf1234      us-east-1       sandbox         Success
-INFO    i-022572ac837c21234      us-east-1       sandbox         Success
-INFO    i-08f4076ee1fa41234      us-east-1       sandbox         Success
-INFO    i-0dfbe7c5db0b21234      us-east-1       sandbox         Success
-INFO    i-064937fab1f211234      us-east-1       sandbox         Success
-INFO    i-04a827989613b1234      us-west-2       sandbox         Success
+INFO    i-054151b14a3cf1234      us-east-1       profile1         Success
+INFO    i-022572ac837c21234      us-east-1       profile1         Success
+INFO    i-08f4076ee1fa41234      us-east-1       profile1         Success
+INFO    i-0dfbe7c5db0b21234      us-east-1       profile1         Success
+INFO    i-064937fab1f211234      us-east-1       profile1         Success
+INFO    i-04a827989613b1234      us-west-2       profile1         Success
 INFO    Execution results: 6 SUCCESS, 0 FAILED
 ```
 
@@ -120,17 +120,17 @@ INFO    Execution results: 6 SUCCESS, 0 FAILED
 Tag-based filtering can also be applied to your search results (including if you manually specify instance names). These filters are additive, which means that each filter you provide will prune down your results to include only instances that match *all* of the provided filters.
 
 ```
-> ./ssm-run -c "uname -a" -p myaccount -f app=myapp -f env=prod
+> ./ssm-run -c "uname -a" -p profile1 -f app=myapp -f env=prod
 
 INFO    Command(s) to be executed: uname -a
-INFO    Fetched 6 instances for account [myaccount] in [us-east-1].
+INFO    Fetched 6 instances for account [profile1] in [us-east-1].
 INFO    Instance ID              Region          Profile         Status
-INFO    i-ccdc371a               us-east-1       myaccount         Success
-INFO    i-9cdd364a               us-east-1       myaccount         Success
-INFO    i-7268418e               us-east-1       myaccount         Success
-INFO    i-1289eeef               us-east-1       myaccount         Success
-INFO    i-2f96f1d2               us-east-1       myaccount         Success
-INFO    i-7b6f4687               us-east-1       myaccount         Success
+INFO    i-ccdc371a               us-east-1       profile1         Success
+INFO    i-9cdd364a               us-east-1       profile1         Success
+INFO    i-7268418e               us-east-1       profile1         Success
+INFO    i-1289eeef               us-east-1       profile1         Success
+INFO    i-2f96f1d2               us-east-1       profile1         Success
+INFO    i-7b6f4687               us-east-1       profile1         Success
 INFO    Execution results: 6 SUCCESS, 0 FAILED
 ```
 
@@ -168,14 +168,14 @@ INFO    Execution results: 6 SUCCESS, 0 FAILED
 	--profiles (shorthand)
 -profiles value
 	Specify a specific profile to use with your API calls.
-	Multiple allowed, delimited by commas (e.g. --profiles sandbox,myaccount)
+	Multiple allowed, delimited by commas (e.g. --profiles profile1,profile2)
 -r value
 	--regions (shorthand)
 -regions value
 	Specify a specific region to use with your API calls.
 	This option will override any profile settings in your config file.
 	Multiple allowed, delimited by commas (e.g. --regions us-east-1,us-west-2)
-    
+
 	[NOTE] Mixing --profiles and --regions will result in your command targeting every matching instance in the selected profiles and regions.
 	e.g., "--profiles foo,bar,baz --regions us-east-1,us-west-2,eu-east-1" will target instances in each of the profile/region combinations:
 		"foo@us-east-1, foo@us-west-2, foo@eu-east-1"

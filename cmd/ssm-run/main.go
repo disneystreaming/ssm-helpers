@@ -75,7 +75,7 @@ func main() {
 	flag.Var(&myFilters, "f", "--filter (shorthand)")
 
 	// Flags for profiles/regions
-	flag.Var(&myProfiles, "profiles", "Specify a specific profile to use with your API calls.\nMultiple allowed, delimited by commas (e.g. --profiles sandbox,myaccount)")
+	flag.Var(&myProfiles, "profiles", "Specify a specific profile to use with your API calls.\nMultiple allowed, delimited by commas (e.g. --profiles profile1,profile2)")
 	flag.Var(&myProfiles, "p", "--profiles (shorthand)")
 	flag.Var(&myRegions, "regions", "Specify a specific region to use with your API calls.\n"+
 		"This option will override any profile settings in your config file.\n"+
