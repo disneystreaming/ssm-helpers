@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"runtime"
 	"strings"
 	"sync"
+	"syscall"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/aws/aws-sdk-go/service/ssm"
@@ -297,13 +299,40 @@ func setSessionStatus(sessionName string, status string) (err error) {
 	return rawCmd.Run()
 }
 
-func startSSMSession(profile string, region string, instanceID string) (err error) {
+func startSSMSession(profile string, region string, instanceID string) error {
 	rawCmd := exec.Command("aws", "ssm", "start-session", "--profile", profile, "--region", region, "--target", instanceID)
 	rawCmd.Stdin = os.Stdin
 	rawCmd.Stdout = os.Stdout
 	rawCmd.Stderr = os.Stderr
 
-	return rawCmd.Run()
+	err := rawCmd.Start()
+	if err != nil {
+		return err
+	}
+
+	// Set up to capture Ctrl+C
+	sigChan := make(chan os.Signal, 2)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	doneChan := make(chan struct{}, 2)
+
+	// Run Wait() in its own chan so we don't block
+	go func() {
+		err = rawCmd.Wait()
+		doneChan <- struct{}{}
+	}()
+	// Here we block until command is done
+	for {
+		select {
+		case s := <-sigChan:
+			// user typed Ctrl-C, most likley meant for ssm-session pass through
+			rawCmd.Process.Signal(s)
+		case <-doneChan:
+			// command is done
+			return err
+		}
+	}
+	return err
 }
 
 func attachTmuxSession(sessionName string) (err error) {
