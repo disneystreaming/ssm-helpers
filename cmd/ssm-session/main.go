@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"os/signal"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -367,7 +366,7 @@ func startSelectionPrompt(instances *instance.InstanceInfoSafe, totalInstances i
 	fmt.Println("      ", promptList[0])
 
 	prompt := &survey.MultiSelect{
-		Message: "Showing " + strconv.Itoa(len(instances.AllInstances)) + "/" + strconv.Itoa(totalInstances) + " instances. Make a selection:",
+		Message: fmt.Sprintf("Showing %d/%d instances. Make a Selection:", len(instances.AllInstances), totalInstances),
 		Options: promptList[1 : len(promptList)-1],
 	}
 
