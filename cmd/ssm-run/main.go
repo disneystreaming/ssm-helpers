@@ -93,6 +93,10 @@ func main() {
 
 	flag.Parse()
 
+	if verboseFlag == 0 && dryRunFlag {
+		verboseFlag = 1
+	}
+
 	if verboseFlag == 3 {
 		log.SetLevel(log.DebugLevel)
 	}
@@ -207,6 +211,12 @@ func main() {
 
 			if verboseFlag > 0 && (len(info) > 0) {
 				log.Infof("Fetched %d instances for account [%s] in [%s].", len(info), sess.ProfileName, *sess.Session.Config.Region)
+				if dryRunFlag {
+					log.Info("Targeted instances:")
+					for _, instance := range info {
+						log.Infof("%s", *instance.InstanceId)
+					}
+				}
 			}
 
 			if limitFlag == 0 || limitFlag > len(info) {
