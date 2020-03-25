@@ -35,6 +35,7 @@ var verboseFlag int
 var dryRunFlag bool
 var sessionName string
 var limitFlag int
+var totalInstances int
 
 func main() {
 	// Get the number of cores available for parallelization
@@ -167,6 +168,7 @@ func main() {
 				log.Error(err)
 			}
 
+			totalInstances = len(instanceList)
 			ssmhelpers.CheckInstanceReadiness(sess, svc, instanceList, instancePool, limitFlag)
 		}(sess, &instancePool)
 	}
@@ -206,7 +208,7 @@ func main() {
 			}
 		} else {
 			// If -i was not specified, go to a selection prompt before starting sessions
-			selectedInstances, err := startSelectionPrompt(&instancePool, myTags)
+			selectedInstances, err := startSelectionPrompt(&instancePool, totalInstances, myTags)
 			if err != nil {
 				log.Fatalf("Error during instance selection\n%s", err)
 			}
@@ -358,13 +360,13 @@ func addInstanceToTmuxWindow(tmuxWindow *gomux.Window, profile string, region st
 	return tPane.Exec(fmt.Sprintf("aws ssm start-session --profile %s --region %s --target %s", profile, region, instanceID))
 }
 
-func startSelectionPrompt(instances *instance.InstanceInfoSafe, tags ssmhelpers.ListSlice) (selectedInstances []instance.InstanceInfo, err error) {
+func startSelectionPrompt(instances *instance.InstanceInfoSafe, totalInstances int, tags ssmhelpers.ListSlice) (selectedInstances []instance.InstanceInfo, err error) {
 	instanceIDList := []string{}
 	promptList := instances.FormatStringSlice([]string(tags)...)
 	fmt.Println("      ", promptList[0])
 
 	prompt := &survey.MultiSelect{
-		Message: "Select the instances to which you want to connect:",
+		Message: fmt.Sprintf("Showing %d/%d instances. Make a Selection:", len(instances.AllInstances), totalInstances),
 		Options: promptList[1 : len(promptList)-1],
 	}
 
