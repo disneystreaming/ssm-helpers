@@ -51,6 +51,7 @@ brews:
   folder: Formula
   dependencies:
     - awscli
+    - disneystreaming/aws-session-manager-plugin
 
 dockers:
   - binaries:
