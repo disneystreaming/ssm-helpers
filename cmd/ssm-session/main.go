@@ -36,6 +36,9 @@ var dryRunFlag bool
 var sessionName string
 var limitFlag int
 var totalInstances int
+var versionFlag bool
+var version = "devel"
+var commit = "notpassed"
 
 func main() {
 	// Get the number of cores available for parallelization
@@ -96,7 +99,15 @@ func main() {
 	// Flag to set a limit to the number of instances returned by the SSM/EC2 API query
 	flag.IntVar(&limitFlag, "limit", 20, "Set a limit for the number of instance results returned per profile/region combination.")
 
+	// Flag to show the version number
+	flag.BoolVar(&versionFlag, "version", false, "Show version and quit")
+
 	flag.Parse()
+
+	if versionFlag {
+		fmt.Printf("Version: %s\tGit Commit Hash: %s\n", version, commit)
+		os.Exit(0)
+	}
 
 	if verboseFlag == 3 {
 		log.SetLevel(log.DebugLevel)
