@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -15,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
+	flag "github.com/spf13/pflag"
 
 	"github.com/disneystreaming/go-ssmhelpers/aws"
 	"github.com/disneystreaming/go-ssmhelpers/aws/session"
@@ -69,20 +69,17 @@ func main() {
 	flag.IntVar(&verboseFlag, "log-level", 0, "Sets verbosity of output:\n0 = quiet, 1 = terse, 2 = warn, 3 = debug")
 
 	// Flag for instance selection
-	flag.Var(&myInstances, "instances", "Specify what instance IDs you want to target.\nMultiple allowed, delimited by commas (e.g. --instances i-12345,i-23456)")
-	flag.Var(&myInstances, "i", "--instances (shorthand)")
+	flag.VarP(&myInstances, "instances", "i", "Specify what instance IDs you want to target.\nMultiple allowed, delimited by commas (e.g. --instances i-12345,i-23456)")
 
 	// Flags for filters
-	flag.Var(&myFilters, "filter", "Filter instances based on tag value. Tags are evaluated with logical AND (instances must match all tags).\nMultiple allowed, delimited by commas (e.g. env=dev,foo=bar)")
-	flag.Var(&myFilters, "f", "--filter (shorthand)")
+	flag.VarP(&myFilters, "filter", "f", "Filter instances based on tag value. Tags are evaluated with logical AND (instances must match all tags).\nMultiple allowed, delimited by commas (e.g. env=dev,foo=bar)")
 
-	flag.Var(&myTags, "tag", "Adds the specified tag as an additional column to be displayed during the instance selection prompt.")
-	flag.Var(&myTags, "t", "--tag (shorthand)")
+	flag.VarP(&myTags, "tag", "t", "Adds the specified tag as an additional column to be displayed during the instance selection prompt.")
 
 	// Flags for profiles/regions
-	flag.Var(&myProfiles, "profiles", "Specify a specific profile to use with your API calls.\nMultiple allowed, delimited by commas (e.g. --profiles dev,myaccount)")
-	flag.Var(&myProfiles, "p", "--profiles (shorthand)")
-	flag.Var(&myRegions, "regions", "Specify a specific region to use with your API calls.\n"+
+	flag.VarP(&myProfiles, "profiles", "p", "Specify a specific profile to use with your API calls.\nMultiple allowed, delimited by commas (e.g. --profiles dev,myaccount)")
+
+	flag.VarP(&myRegions, "regions", "r", "Specify a specific region to use with your API calls.\n"+
 		"This option will override any profile settings in your config file.\n"+
 		"Multiple allowed, delimited by commas (e.g. --regions us-east-1,us-west-2)\n\n"+
 		"[NOTE] Mixing --profiles and --regions will result in your command targeting every matching instance in the selected profiles and regions.\n"+
@@ -91,14 +88,12 @@ func main() {
 		"\t\"bar@us-east-1, bar@us-west-2, bar@eu-east-1\"\n"+
 		"\t\"baz@us-east-1, baz@us-west-2, baz@eu-east-1\"\n"+
 		"Please be careful.")
-	flag.Var(&myRegions, "r", "--regions (shorthand)")
 
 	// Flag to allow naming of tmux session
 	flag.StringVar(&sessionName, "session-name", "ssm-session", "Specify a name for the tmux session created when multiple instances are selected")
 
 	// Flag to set a limit to the number of instances returned by the SSM/EC2 API query
-	flag.IntVar(&limitFlag, "limit", 20, "Set a limit for the number of instance results returned per profile/region combination.")
-	flag.IntVar(&limitFlag, "l", "--limit (shorthand)")
+	flag.IntVarP(&limitFlag, "limit", "l", 20, "Set a limit for the number of instance results returned per profile/region combination.")
 
 	// Flag to show the version number
 	flag.BoolVar(&versionFlag, "version", false, "Show version and quit")
