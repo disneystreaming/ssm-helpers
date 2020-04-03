@@ -90,6 +90,7 @@ func main() {
 
 	// Flag to set a limit to the number of instances returned by the SSM/EC2 API query
 	flag.IntVar(&limitFlag, "limit", 0, "Set a limit for the number of instance results returned per profile/region combination (0 = no limit)")
+	flag.IntVar(&limitFlag, "l", "--limit (shorthand)")
 
 	flag.Parse()
 
