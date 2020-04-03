@@ -16,7 +16,9 @@ We will not be able to provide support for AWS Session Manager or Systems Manage
 You should contact your AWS support staff for all issues and errors that are not directly related to these tools.
 
 [Contributing](#contributing)
+
 [Releasing](#releasing)
+
 [Dependencies](#dependencies)
 
 ### Contributing
@@ -30,9 +32,7 @@ We welcome PRs for code changes but please keep in mind that the maintainers are
 ### Releasing
 
 ssm-helpers uses tag based [semantic versioned](https://semver.org/) (semver) releases.
-Which means if you push a tag named `v1.0.0` it will make a new [release](https://github.com/disneystreaming/ssm-helpers/releases) and build installation packages.
-
-It uses [Github Actions](https://github.com/features/actions) for CI and [goreleaser](https://goreleaser.com/) for CD.
+This means that if you push a tag named `v1.0.0` it will make a new [release](https://github.com/disneystreaming/ssm-helpers/releases) and build installation packages. It uses [Github Actions](https://github.com/features/actions) for CI and [goreleaser](https://goreleaser.com/) for CD.
 
 ### Dependencies
 
