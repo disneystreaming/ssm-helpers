@@ -2,7 +2,7 @@ package main
 
 import (
 	"bufio"
-	"flag"
+	"fmt"
 	"os"
 	"runtime"
 	"strings"
@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
+	flag "github.com/spf13/pflag"
 
 	awshelpers "github.com/disneystreaming/go-ssmhelpers/aws"
 	"github.com/disneystreaming/go-ssmhelpers/aws/session"
@@ -54,8 +55,7 @@ func main() {
 	})
 
 	// Flag for commands to be run
-	flag.Var(&myCommands, "commands", "Specify any number of commands to be run.\nMultiple allowed, enclosed in double quotes and delimited by semicolons (e.g. --comands \"hostname; uname -a\")")
-	flag.Var(&myCommands, "c", "--commands (shorthand)")
+	flag.VarP(&myCommands, "commands", "c", "Specify any number of commands to be run.\nMultiple allowed, enclosed in double quotes and delimited by semicolons (e.g. --comands \"hostname; uname -a\")")
 
 	// Flag to use a shell script as the document input
 	inputFile := flag.String("file", "", "Specify the path to a shell script to use as input for the AWS-RunShellScript document.\nThis can be used in combination with the --commands/-c flag, and will be run after the specified commands.")
@@ -70,17 +70,15 @@ func main() {
 	flag.IntVar(&verboseFlag, "log-level", 0, "Sets verbosity of output:\n0 = quiet, 1 = terse, 2 = standard, 3 = debug")
 
 	// Flag for instance selection
-	flag.Var(&myInstances, "instances", "Specify what instance IDs you want to target.\nMultiple allowed, delimited by commas (e.g. --instances i-12345,i-23456)")
-	flag.Var(&myInstances, "i", "--instances (shorthand)")
+	flag.VarP(&myInstances, "instances", "i", "Specify what instance IDs you want to target.\nMultiple allowed, delimited by commas (e.g. --instances i-12345,i-23456)")
 
 	// Flags for filters
-	flag.Var(&myFilters, "filter", "Filter instances based on tag value. Tags are evaluated with logical AND (instances must match all tags).\nMultiple allowed, delimited by commas (e.g. env=dev,foo=bar)")
-	flag.Var(&myFilters, "f", "--filter (shorthand)")
+	flag.VarP(&myFilters, "filter", "f", "Filter instances based on tag value. Tags are evaluated with logical AND (instances must match all tags).\nMultiple allowed, delimited by commas (e.g. env=dev,foo=bar)")
 
 	// Flags for profiles/regions
-	flag.Var(&myProfiles, "profiles", "Specify a specific profile to use with your API calls.\nMultiple allowed, delimited by commas (e.g. --profiles profile1,profile2)")
-	flag.Var(&myProfiles, "p", "--profiles (shorthand)")
-	flag.Var(&myRegions, "regions", "Specify a specific region to use with your API calls.\n"+
+	flag.VarP(&myProfiles, "profiles", "p", "Specify a specific profile to use with your API calls.\nMultiple allowed, delimited by commas (e.g. --profiles profile1,profile2)")
+
+	flag.VarP(&myRegions, "regions", "r", "Specify a specific region to use with your API calls.\n"+
 		"This option will override any profile settings in your config file.\n"+
 		"Multiple allowed, delimited by commas (e.g. --regions us-east-1,us-west-2)\n\n"+
 		"[NOTE] Mixing --profiles and --regions will result in your command targeting every matching instance in the selected profiles and regions.\n"+
@@ -89,11 +87,9 @@ func main() {
 		"\t\"bar@us-east-1, bar@us-west-2, bar@eu-east-1\"\n"+
 		"\t\"baz@us-east-1, baz@us-west-2, baz@eu-east-1\"\n"+
 		"Please be careful.")
-	flag.Var(&myRegions, "r", "--regions (shorthand)")
 
 	// Flag to set a limit to the number of instances returned by the SSM/EC2 API query
-	flag.IntVar(&limitFlag, "limit", 0, "Set a limit for the number of instance results returned per profile/region combination (0 = no limit)")
-	flag.IntVar(&limitFlag, "l", "--limit (shorthand)")
+	flag.IntVarP(&limitFlag, "limit", "l", 0, "Set a limit for the number of instance results returned per profile/region combination (0 = no limit)")
 
 	// Flag to show the version number
 	flag.BoolVar(&versionFlag, "version", false, "Show version and quit")
