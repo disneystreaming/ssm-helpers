@@ -66,6 +66,6 @@ go build -o ssm-session ./cmd/ssm-session/main.go
 ## Develop
 
 Each tool lives in the `cmd/<tool-name>` folder and is written in go.
-They use the [aws-sdk-go](https://github.com/aws/aws-sdk-go) as well as our own fork of [gomux](https://github.com/disneystreaming/gomux) and a new library we provide at [go-ssmhelpers](https://github.com/disneystreaming/go-ssmhelpers).
+They use the [aws-sdk-go](https://github.com/aws/aws-sdk-go) as well as our own fork of [gomux](https://github.com/disneystreaming/gomux) and a new library we provide at [go-ssm-helpers](https://github.com/disneystreaming/go-ssm-helpers).
 
 If you find bugs or would like to suggest improvements please use GitHub issues on the appropriate repo.
