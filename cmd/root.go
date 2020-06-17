@@ -9,6 +9,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var version = "devel"
+var commit = "notpassed"
+
 func newRootCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "ssm",
@@ -33,6 +36,7 @@ func newRootCmd() *cobra.Command {
 	cmdgroup := &builder.SubCommandGroup{
 		Commands: []*cobra.Command{
 			newCommandSSMRun(),
+			newCommandSSMSession(),
 		},
 	}
 
