@@ -10,7 +10,8 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/AlecAivazis/survey"
+	"github.com/AlecAivazis/survey/v2"
+	"github.com/AlecAivazis/survey/v2/terminal"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/spf13/cobra"
 
@@ -159,7 +160,12 @@ func startSessionCommand(cmd *cobra.Command, args []string) {
 			// If -i was not specified, go to a selection prompt before starting sessions
 			selectedInstances, err := startSelectionPrompt(&instancePool, totalInstances, tagList)
 			if err != nil {
-				log.Fatalf("Error during instance selection\n%s", err)
+				if err == terminal.InterruptErr {
+					log.Info("Instance selection interrupted.")
+					os.Exit(0)
+				}
+				log.Errorf("Error during instance selection\n%s", err)
+				os.Exit(1)
 			}
 
 			// If only one instance was selected, don't bother with a tmux session
