@@ -12,7 +12,6 @@ import (
 
 	"github.com/AlecAivazis/survey"
 	"github.com/aws/aws-sdk-go/service/ssm"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/disneystreaming/gomux"
@@ -42,7 +41,7 @@ func newCommandSSMSession() *cobra.Command {
 
 func startSessionCommand(cmd *cobra.Command, args []string) {
 	cmdutil.ValidateArgs(cmd, args)
-	verboseFlag := cmdutil.GetFlagInt(cmd.Parent(), "verbose")
+
 	dryRunFlag := cmdutil.GetFlagBool(cmd.Parent(), "dry-run")
 	profileList := cmdutil.GetFlagStringSlice(cmd.Parent(), "profile")
 	regionList := cmdutil.GetFlagStringSlice(cmd.Parent(), "region")
@@ -54,26 +53,6 @@ func startSessionCommand(cmd *cobra.Command, args []string) {
 
 	// Get the number of cores available for parallelization
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	// Set logs to go to stdout by default
-	log.SetOutput(os.Stdout)
-	log.SetFormatter(&log.TextFormatter{
-		// Disable level truncation, timestamp, and pad out the level text to even it up
-		DisableLevelTruncation: true,
-		DisableTimestamp:       true,
-	})
-
-	if cmdutil.GetFlagBool(cmd, "version") {
-		fmt.Printf("Version: %s\tGit Commit Hash: %s\n", version, commit)
-		os.Exit(0)
-	}
-
-	if verboseFlag == 0 && dryRunFlag {
-		verboseFlag = 1
-	}
-
-	if verboseFlag == 3 {
-		log.SetLevel(log.DebugLevel)
-	}
 
 	if len(profileList) == 0 {
 		env, exists := os.LookupEnv("AWS_PROFILE")
@@ -147,9 +126,7 @@ func startSessionCommand(cmd *cobra.Command, args []string) {
 
 	wg.Wait()
 
-	if verboseFlag > 0 {
-		log.Infof("Found %d usable instances.", len(instancePool.AllInstances))
-	}
+	log.Infof("Found %d usable instances.", len(instancePool.AllInstances))
 
 	// No functional results, exit now
 	if len(instancePool.AllInstances) == 0 {
@@ -243,7 +220,6 @@ func configTmuxSession(sessionName string, selectedInstances []instance.Instance
 		// Add a window for our instance to our tmux session
 		if err = addInstanceToTmuxWindow(tmuxWindow, v.Profile, v.Region, v.InstanceID); err != nil {
 			return fmt.Errorf("Failed to add instance %s to tmux session\n%s", v.InstanceID, err)
-
 		}
 
 		// Re-tile our layout after each window to avoid the "pane too small" error
@@ -269,7 +245,6 @@ func configTmuxSession(sessionName string, selectedInstances []instance.Instance
 
 func setSessionStatus(sessionName string, status string) (err error) {
 	rawCmd := exec.Command("tmux", "set-option", "-t", sessionName, "status-left", status)
-
 	return rawCmd.Run()
 }
 

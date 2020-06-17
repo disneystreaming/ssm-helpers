@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"bufio"
-	"fmt"
 	"os"
 	"runtime"
 	"strings"
@@ -10,7 +9,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ssm"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	awsx "github.com/disneystreaming/ssm-helpers/aws"
@@ -39,8 +37,8 @@ func newCommandSSMRun() *cobra.Command {
 
 func runCommand(cmd *cobra.Command, args []string) {
 	cmdutil.ValidateArgs(cmd, args)
+
 	commandList := cmdutil.GetCommandFlagStringSlice(cmd)
-	verboseFlag := cmdutil.GetFlagInt(cmd.Parent(), "verbose")
 	dryRunFlag := cmdutil.GetFlagBool(cmd.Parent(), "dry-run")
 	profileList := cmdutil.GetFlagStringSlice(cmd.Parent(), "profile")
 	regionList := cmdutil.GetFlagStringSlice(cmd.Parent(), "region")
@@ -49,29 +47,6 @@ func runCommand(cmd *cobra.Command, args []string) {
 	instanceList := cmdutil.GetFlagStringSlice(cmd, "instance")
 	// Get the number of cores available for parallelization
 	runtime.GOMAXPROCS(runtime.NumCPU())
-
-	// Set logs to go to stdout by default
-	log.SetOutput(os.Stdout)
-	log.SetFormatter(&log.TextFormatter{
-		// Disable level truncation, timestamp, and pad out the level text to even it up
-		DisableLevelTruncation: true,
-		DisableTimestamp:       true,
-	})
-
-	if cmdutil.GetFlagBool(cmd, "version") {
-		fmt.Printf("Version: %s\tGit Commit Hash: %s\n", version, commit)
-		os.Exit(0)
-	}
-
-	if verboseFlag == 0 && dryRunFlag {
-		verboseFlag = 1
-	}
-
-	if verboseFlag == 3 {
-		log.SetLevel(log.DebugLevel)
-	}
-
-	// Split our commands into an array of individual commands, if necessary
 
 	// If the --commands and --file options are specified, we append the script contents to the specified commands
 	if inputFile := cmdutil.GetFlagString(cmd, "file"); inputFile != "" {
@@ -111,9 +86,7 @@ func runCommand(cmd *cobra.Command, args []string) {
 		"executionTimeout": aws.StringSlice([]string{"600"}),
 	}
 
-	if verboseFlag > 0 {
-		log.Info("Command(s) to be executed: ", strings.Join(commandList, ","))
-	}
+	log.Info("Command(s) to be executed: ", strings.Join(commandList, ","))
 
 	if len(profileList) == 0 {
 		env, exists := os.LookupEnv("AWS_PROFILE")
@@ -177,7 +150,7 @@ func runCommand(cmd *cobra.Command, args []string) {
 				return
 			}
 
-			if verboseFlag > 0 && (len(info) > 0) {
+			if len(info) > 0 {
 				log.Infof("Fetched %d instances for account [%s] in [%s].", len(info), sess.ProfileName, *sess.Session.Config.Region)
 				if dryRunFlag {
 					log.Info("Targeted instances:")
@@ -191,8 +164,7 @@ func runCommand(cmd *cobra.Command, args []string) {
 				limitFlag = len(info)
 			}
 
-			err = ssmx.RunInvocations(sess, svc, info[:limitFlag], params, dryRunFlag, completedInvocations)
-			if err != nil {
+			if err = ssmx.RunInvocations(sess, svc, info[:limitFlag], params, dryRunFlag, completedInvocations); err != nil {
 				log.Error(err)
 			}
 		}(sess, &completedInvocations)
@@ -201,7 +173,7 @@ func runCommand(cmd *cobra.Command, args []string) {
 	wg.Wait()
 
 	// Hide results if --verbose is set to quiet or terse
-	if verboseFlag > 1 && !dryRunFlag {
+	if !dryRunFlag {
 		log.Infof("%-24s %-15s %-15s %s\n", "Instance ID", "Region", "Profile", "Status")
 	}
 
@@ -212,20 +184,16 @@ func runCommand(cmd *cobra.Command, args []string) {
 
 		// Hide results if --verbose is set to quiet or terse
 		if v.Status != "Success" {
-			if verboseFlag > 1 {
-				log.Errorf("%-24s %-15s %-15s %s", *v.InvocationResult.InstanceId, v.Region, v.ProfileName, *v.InvocationResult.StatusDetails)
-			}
-
 			// Always output error info to stderr
+			log.Errorf("%-24s %-15s %-15s %s", *v.InvocationResult.InstanceId, v.Region, v.ProfileName, *v.InvocationResult.StatusDetails)
 			log.Error(*v.InvocationResult.StandardErrorContent)
+
 			failedCounter++
 		} else {
-			if verboseFlag > 1 {
-				log.Infof("%-24s %-15s %-15s %s", *v.InvocationResult.InstanceId, v.Region, v.ProfileName, *v.InvocationResult.StatusDetails)
-			}
-			if verboseFlag > 2 {
-				log.Info(*v.InvocationResult.StandardOutputContent)
-			}
+			// Output stdout from invocations to stdout
+			log.Infof("%-24s %-15s %-15s %s", *v.InvocationResult.InstanceId, v.Region, v.ProfileName, *v.InvocationResult.StatusDetails)
+			log.Info(*v.InvocationResult.StandardOutputContent)
+
 			successCounter++
 		}
 

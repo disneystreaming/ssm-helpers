@@ -47,11 +47,6 @@ func AddLimitFlag(cmd *cobra.Command, limit int, desc string) {
 	cmd.PersistentFlags().IntP("limit", "l", limit, desc)
 }
 
-// AddVersionFlag adds --version to command
-func AddVersionFlag(cmd *cobra.Command) {
-	cmd.PersistentFlags().Bool("version", false, "Show version and quit")
-}
-
 // AddInstanceFlag adds --instance to command
 func AddInstanceFlag(cmd *cobra.Command) {
 	cmd.PersistentFlags().StringSliceP("instance", "i", nil, "Specify what instance IDs you want to target.\nMultiple allowed, delimited by commas (e.g. --instance i-12345,i-23456)")
