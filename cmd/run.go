@@ -21,9 +21,6 @@ import (
 	"github.com/disneystreaming/ssm-helpers/util"
 )
 
-var version = "devel"
-var commit = "notpassed"
-
 func newCommandSSMRun() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "run",
@@ -36,7 +33,7 @@ func newCommandSSMRun() *cobra.Command {
 
 	cmdutil.AddCommandFlag(cmd)
 	cmdutil.AddFileFlag(cmd, "Specify the path to a shell script to use as input for the AWS-RunShellScript document.\nThis can be used in combination with the --commands/-c flag, and will be run after the specified commands.")
-	cmdutil.AddLimitFlag(cmd, "Set a limit for the number of instance results returned per profile/region combination (0 = no limit)")
+	cmdutil.AddLimitFlag(cmd, 0, "Set a limit for the number of instance results returned per profile/region combination (0 = no limit)")
 	return cmd
 }
 

@@ -43,8 +43,8 @@ func AddVerboseFlag(cmd *cobra.Command) {
 }
 
 // AddLimitFlag adds --limit to command
-func AddLimitFlag(cmd *cobra.Command, desc string) {
-	cmd.PersistentFlags().IntP("limit", "l", 0, desc)
+func AddLimitFlag(cmd *cobra.Command, limit int, desc string) {
+	cmd.PersistentFlags().IntP("limit", "l", limit, desc)
 }
 
 // AddVersionFlag adds --version to command
@@ -73,6 +73,16 @@ func AddFileFlag(cmd *cobra.Command, desc string) {
 	cmd.Flags().String("file", "", desc)
 }
 
+// AddTagFlag adds --tag to command
+func AddTagFlag(cmd *cobra.Command) {
+	cmd.Flags().StringSliceP("tag", "t", nil, "Adds the specified tag as an additional column to be displayed during the instance selection prompt.")
+}
+
+// AddSessionNameFlag adds --session-name to command
+func AddSessionNameFlag(cmd *cobra.Command, defaultName string) {
+	cmd.Flags().String("session-name", defaultName, "Specify a name for the tmux session created when multiple instances are selected")
+}
+
 // ValidateArgs makes sure nothing extra was passed on CLI
 func ValidateArgs(cmd *cobra.Command, args []string) {
 	if len(args) != 0 {
@@ -87,6 +97,7 @@ func UsageError(cmd *cobra.Command, format string, args ...interface{}) {
 	os.Exit(1)
 }
 
+// GetCommandFlagStringSlice returns the []string value of a String() flag, delimited by semicolons
 func GetCommandFlagStringSlice(cmd *cobra.Command) []string {
 	commandString, err := cmd.Flags().GetString("command")
 	if err != nil {
@@ -101,19 +112,21 @@ func GetCommandFlagStringSlice(cmd *cobra.Command) []string {
 	return readAsSSV(commandString)
 }
 
-// Returns the []String from options
+// GetFlagStringSlice returns the []string value of a StringSlice() flag
 func GetFlagStringSlice(cmd *cobra.Command, flag string) []string {
 	s, err := cmd.Flags().GetStringSlice(flag)
 	if err != nil {
 		log.WithError(err).
-			WithField("flag", flag).
-			WithField("command", cmd.Name()).
+			WithFields(log.Fields{
+				"flag":    flag,
+				"command": cmd.Name(),
+			}).
 			Error("could not fetch flag")
 	}
 	return s
 }
 
-// Returns the String option for the flag. Will error exit if there is an error
+// GetFlagString returns the string value of a String() flag
 func GetFlagString(cmd *cobra.Command, flag string) string {
 	s, err := cmd.Flags().GetString(flag)
 	if err != nil {
@@ -127,26 +140,72 @@ func GetFlagString(cmd *cobra.Command, flag string) string {
 	return s
 }
 
-// Returns a bool from options hash
+// GetFlagBool returns the bool value from a Bool() flag
 func GetFlagBool(cmd *cobra.Command, flag string) bool {
 	s, err := cmd.Flags().GetBool(flag)
 	if err != nil {
 		log.WithError(err).
-			WithField("flag", flag).
-			WithField("command", cmd.Name()).
+			WithFields(log.Fields{
+				"flag":    flag,
+				"command": cmd.Name(),
+			}).
 			Error("could not fetch flag")
 	}
 	return s
 }
 
-// Returns an Integer from options hash
+// GetFlagInt returns the integer value from an Int() flag
 func GetFlagInt(cmd *cobra.Command, flag string) int {
 	s, err := cmd.Flags().GetInt(flag)
 	if err != nil {
 		log.WithError(err).
-			WithField("flag", flag).
-			WithField("command", cmd.Name()).
+			WithFields(log.Fields{
+				"flag":    flag,
+				"command": cmd.Name(),
+			}).
 			Error("could not fetch flag")
 	}
 	return s
+}
+
+// GetMapFromStringSlice returns a k,v map from a StringSlice() flag
+func GetMapFromStringSlice(cmd *cobra.Command, flag string) map[string]string {
+	m := make(map[string]string)
+	slice := GetFlagStringSlice(cmd, flag)
+	squashSlice := squashParamsSlice(slice, cmd)
+
+	for _, v := range squashSlice {
+		if !strings.Contains(v, "=") {
+			UsageError(cmd, "Invalid Parameter format: %s\n", v)
+		}
+		// Only split to retun a max of 2 values. This will take string
+		// key=value= and return ["key", "value="]
+		kv := strings.SplitN(v, "=", 2)
+		m[kv[0]] = kv[1]
+	}
+
+	return m
+}
+
+// Reformats CSV params passed via CLI
+// e.g. Input:	["Env=dev", "ElbSecurityGroups=sg-1234", "sg-5678", "App=grafana"]
+// 		Output:	["Env=dev", "ElbSecurityGroups=sg-1234,sg-5678", "App=grafana"]
+func squashParamsSlice(slice []string, cmd *cobra.Command) []string {
+	sqS := make([]string, 0, len(slice))
+	index := -1
+	if len(slice) != 0 {
+		for _, v := range slice {
+			if !strings.Contains(v, "=") {
+				if index < 0 {
+					UsageError(cmd, "Invalid Parameter format:%s\n", v)
+				}
+				sqS[index] = sqS[index] + "," + v
+			} else {
+				sqS = append(sqS, v)
+				index++
+			}
+		}
+	}
+
+	return sqS
 }
