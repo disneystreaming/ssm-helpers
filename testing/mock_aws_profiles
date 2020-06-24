@@ -1,0 +1,16 @@
+[bad]
+this should be = ignored
+profile
+garbage =
+
+[profile test-account-1]
+output = json
+region = us-east-1
+
+[profile test-account-2]
+output = json
+region = us-east-1
+
+[profile test-account-3]
+output = json
+region = us-east-1

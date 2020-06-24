@@ -5,9 +5,9 @@ before:
     - go mod tidy
 
 builds:
-- id: ssm-run
-  main: ./cmd/ssm-run/main.go
-  binary: ssm-run
+- id: ssm
+  main: ./main.go
+  binary: bin/ssm
   goos:
     - windows
     - darwin
@@ -15,23 +15,13 @@ builds:
   goarch:
     - amd64
   env:
-  - CGO_ENABLED=0
-- id: ssm-session
-  main: ./cmd/ssm-session/main.go
-  binary: ssm-session
-  goos:
-    - windows
-    - darwin
-    - linux
-  goarch:
-    - amd64
-  env:
-  - CGO_ENABLED=0
+    - CGO_ENABLED=0
+  ldflags:
+    - -s -w -X 'github.com/disneystreaming/ssm-helpers/cmd.version={{.Version}}' -X 'github.com/disneystreaming/ssm-helpers/cmd.commit={{.Commit}}'
 
 archives:
 - builds:
-  - ssm-run
-  - ssm-session
+  - ssm
   replacements:
     darwin: Darwin
     linux: Linux
@@ -55,23 +45,14 @@ brews:
 
 dockers:
   - binaries:
-    - ssm-run
+    - ssm
     goos: linux
-    dockerfile: Dockerfile.ssm-run
+    dockerfile: Dockerfile
     image_templates:
-    - "docker.pkg.github.com/disneystreaming/ssm-helpers/ssm-run:latest"
-    - "docker.pkg.github.com/disneystreaming/ssm-helpers/ssm-run:{{ .Tag }}"
-    - "docker.pkg.github.com/disneystreaming/ssm-helpers/ssm-run:{{ .Major }}"
-    - "docker.pkg.github.com/disneystreaming/ssm-helpers/ssm-run:{{ .Major }}.{{ .Minor }}"
-  - binaries:
-    - ssm-session
-    goos: linux
-    dockerfile: Dockerfile.ssm-session
-    image_templates:
-    - "docker.pkg.github.com/disneystreaming/ssm-helpers/ssm-session:latest"
-    - "docker.pkg.github.com/disneystreaming/ssm-helpers/ssm-session:{{ .Tag }}"
-    - "docker.pkg.github.com/disneystreaming/ssm-helpers/ssm-session:{{ .Major }}"
-    - "docker.pkg.github.com/disneystreaming/ssm-helpers/ssm-session:{{ .Major }}.{{ .Minor }}"
+    - "docker.pkg.github.com/disneystreaming/ssm-helpers/ssm:latest"
+    - "docker.pkg.github.com/disneystreaming/ssm-helpers/ssm:{{ .Tag }}"
+    - "docker.pkg.github.com/disneystreaming/ssm-helpers/ssm:{{ .Major }}"
+    - "docker.pkg.github.com/disneystreaming/ssm-helpers/ssm:{{ .Major }}.{{ .Minor }}"
 
 nfpms:
   - license: MIT
