@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws/session"
+
 	"github.com/disneystreaming/ssm-helpers/aws/config"
 )
 

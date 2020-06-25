@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+
 	"github.com/disneystreaming/ssm-helpers/cmd/builder"
 	"github.com/disneystreaming/ssm-helpers/cmd/cmdutil"
 	"github.com/disneystreaming/ssm-helpers/cmd/logutil"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 )
 
 var version = "devel"
