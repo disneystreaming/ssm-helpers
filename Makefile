@@ -13,7 +13,7 @@ GOFILES		= $(shell find . -type f -name '*.go' )
 GODIRS		= $(shell go list -f '{{.Dir}}' ./...)
 
 .PHONY: build
-build:
+build: format
 	@echo "--> building"
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o bin/ssm main.go
 	@docker build . -f Dockerfile -t $(IMAGE)
