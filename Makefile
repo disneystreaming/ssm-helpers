@@ -12,10 +12,20 @@ IMAGE		:= docker.pkg.github.com/disneystreaming/ssm-helpers/ssm
 GOFILES		= $(shell find . -type f -name '*.go' )
 GODIRS		= $(shell go list -f '{{.Dir}}' ./...)
 
+# Current platforms os and architecture
+GOOS		= $(shell go env GOOS)
+GOARCH		= $(shell go env GOARCH)
+
 .PHONY: build
 build: format
 	@echo "--> building"
+	GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=0 go build -o bin/ssm main.go
+
+.PHONY: docker
+docker: format
+	@echo "--> building linux binary"
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o bin/ssm main.go
+	@echo "--> building docker image"
 	@docker build . -f Dockerfile -t $(IMAGE)
 
 .PHONY: clean
