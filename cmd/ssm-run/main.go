@@ -227,11 +227,12 @@ func main() {
 				}
 			}
 
-			if limitFlag == 0 || limitFlag > len(info) {
-				limitFlag = len(info)
+			limit := len(info)
+			if limitFlag != 0 && limitFlag < limit {
+				limit = limitFlag
 			}
 
-			err = ssmhelpers.RunInvocations(sess, svc, info[:limitFlag], params, dryRunFlag, completedInvocations)
+			err = ssmhelpers.RunInvocations(sess, svc, info[:limit], params, dryRunFlag, completedInvocations)
 			if err != nil {
 				log.Error(err)
 			}
