@@ -60,7 +60,19 @@ go get github.com/disneystreaming/ssm-helpers/
 ## Build
 
 ```
-go build -o ./bin/ssm ./main.go
+make build
+```
+
+### Testing
+
+```
+make test
+```
+
+### Linting
+
+```
+make check
 ```
 
 ## Develop

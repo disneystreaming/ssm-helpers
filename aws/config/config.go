@@ -5,6 +5,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/client"
+
 	"github.com/disneystreaming/ssm-helpers/util/httpx"
 )
 
