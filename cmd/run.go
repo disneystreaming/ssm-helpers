@@ -5,7 +5,6 @@ import (
 	"os"
 	"runtime"
 	"strings"
-	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ssm"
@@ -43,10 +42,18 @@ func runCommand(cmd *cobra.Command, args []string) {
 	profileList := cmdutil.GetFlagStringSlice(cmd.Parent(), "profile")
 	regionList := cmdutil.GetFlagStringSlice(cmd.Parent(), "region")
 	filterList := cmdutil.GetFlagStringSlice(cmd.Parent(), "filter")
-	limitFlag := cmdutil.GetFlagInt(cmd, "limit")
 	instanceList := cmdutil.GetFlagStringSlice(cmd, "instance")
 	// Get the number of cores available for parallelization
 	runtime.GOMAXPROCS(runtime.NumCPU())
+
+	if len(instanceList) > 0 && len(filterList) > 0 {
+		cmdutil.UsageError(cmd, "The --filter and --instance flags cannot be used simultaneously.")
+		os.Exit(1)
+	}
+
+	if len(instanceList) > 50 {
+		cmdutil.UsageError(cmd, "The --instance flag can only be used to specify a maximum of 50 instances.")
+	}
 
 	// If the --commands and --file options are specified, we append the script contents to the specified commands
 	if inputFile := cmdutil.GetFlagString(cmd, "file"); inputFile != "" {
@@ -73,17 +80,6 @@ func runCommand(cmd *cobra.Command, args []string) {
 	if commandList == nil || len(commandList) == 0 {
 		cmdutil.UsageError(cmd, "Please specify a command to be run on your instances.")
 		os.Exit(1)
-	}
-
-	// ssm.SendCommandInput objects require parameters for the DocumentName chosen
-	params := &invocation.RunShellScriptParameters{
-		/*
-			For AWS-RunShellScript, the only required parameter is "commands",
-			which is the shell command to be executed on the target. To emulate
-			the original script, we also set "executionTimeout" to 10 minutes.
-		*/
-		"commands":         aws.StringSlice(commandList),
-		"executionTimeout": aws.StringSlice([]string{"600"}),
 	}
 
 	log.Info("Command(s) to be executed: ", strings.Join(commandList, ","))
@@ -116,71 +112,46 @@ func runCommand(cmd *cobra.Command, args []string) {
 	// Set up our AWS session for each permutation of profile + region
 	sessionPool := session.NewPoolSafe(profileList, regionList)
 
-	// Set up our filters
-	var filterMaps []map[string]string
-
 	// Convert the filter slice to a map
-	filterMap := make(map[string]string)
+	targets := []*ssm.Target{}
 
 	if len(filterList) > 0 {
-		util.SliceToMap(filterList, &filterMap)
-		filterMaps = append(filterMaps, filterMap)
+		targets = util.SliceToTargets(filterList)
 	}
 
-	var completedInvocations invocation.ResultSafe
-	var wg sync.WaitGroup
+	// ssm.SendCommandInput objects require parameters for the DocumentName chosen
+	params := &invocation.RunShellScriptParameters{
+		/*
+			For AWS-RunShellScript, the only required parameter is "commands",
+			which is the shell command to be executed on the target. To emulate
+			the original script, we also set "executionTimeout" to 10 minutes.
+		*/
+		"commands":         aws.StringSlice(commandList),
+		"executionTimeout": aws.StringSlice([]string{"600"}),
+	}
+
+	sciInput := &ssm.SendCommandInput{
+		InstanceIds:  aws.StringSlice(instanceList),
+		Targets:      targets,
+		DocumentName: aws.String("AWS-RunShellScript"),
+		Parameters:   *params,
+	}
+
+	ec := make(chan error)
+	var output invocation.ResultSafe
 
 	for _, sess := range sessionPool.Sessions {
-		wg.Add(1)
-		go func(sess *session.Pool, completedInvocations *invocation.ResultSafe) {
-			defer wg.Done()
-			instanceChan := make(chan []*ssm.InstanceInformation)
-			errChan := make(chan error)
-			svc := ssm.New(sess.Session)
-
-			go ssmx.GetInstanceList(svc, filterMaps, instanceList, false, instanceChan, errChan)
-			info, err := <-instanceChan, <-errChan
-
-			if err != nil {
-				log.Debugf("AWS Session Parameters: %s, %s", *sess.Session.Config.Region, sess.ProfileName)
-				log.Error(err)
-			}
-
-			if len(info) == 0 {
-				return
-			}
-
-			if len(info) > 0 {
-				log.Infof("Fetched %d instances for account [%s] in [%s].", len(info), sess.ProfileName, *sess.Session.Config.Region)
-				if dryRunFlag {
-					log.Info("Targeted instances:")
-					for _, instance := range info {
-						log.Infof("%s", *instance.InstanceId)
-					}
-				}
-			}
-
-			if limitFlag == 0 || limitFlag > len(info) {
-				limitFlag = len(info)
-			}
-
-			if err = ssmx.RunInvocations(sess, svc, info[:limitFlag], params, dryRunFlag, completedInvocations); err != nil {
-				log.Error(err)
-			}
-		}(sess, &completedInvocations)
+		ssmx.RunInvocations(sess, sciInput, &output, ec)
 	}
-
-	wg.Wait()
 
 	// Hide results if --verbose is set to quiet or terse
 	if !dryRunFlag {
 		log.Infof("%-24s %-15s %-15s %s\n", "Instance ID", "Region", "Profile", "Status")
 	}
 
-	var successCounter int
-	var failedCounter int
+	var successCounter, failedCounter int
 
-	for _, v := range completedInvocations.InvocationResults {
+	for _, v := range output.InvocationResults {
 
 		// Hide results if --verbose is set to quiet or terse
 		if v.Status != "Success" {

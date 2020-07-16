@@ -1,9 +1,12 @@
 package ssm
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/hashicorp/go-multierror"
+	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/disneystreaming/ssm-helpers/aws/session"
@@ -53,64 +56,74 @@ func addInstanceInfo(instanceID *string, tags []ec2helpers.InstanceTags, instanc
 	}
 }
 
+func checkInvocationStatus(ctx ssmiface.SSMAPI, commandID *string) (done bool, err error) {
+	var invocation *ssm.ListCommandsOutput
+	if invocation, err = ctx.ListCommands(&ssm.ListCommandsInput{
+		CommandId: commandID,
+	}); err != nil {
+		return true, err
+	}
+
+	if len(invocation.Commands) != 1 {
+		return true, fmt.Errorf("Incorrect number of invocations returned for given command ID; expected 1, got %d", len(invocation.Commands))
+	}
+
+	switch *invocation.Commands[0].Status {
+	case "Pending", "InProgress":
+		return false, nil
+	default:
+		return true, nil
+	}
+}
+
 // RunInvocations invokes an SSM document with given parameters on the provided slice of instances
-func RunInvocations(sp *session.Pool, sess *ssm.SSM, instances []*ssm.InstanceInformation, params *invocation.RunShellScriptParameters, dryRun bool, resultsPool *invocation.ResultSafe) (err error) {
-	var commandOutput invocation.CommandOutputSafe
-	var invError error
+func RunInvocations(sess *session.Pool, input *ssm.SendCommandInput, results *invocation.ResultSafe, ec chan error) {
+	oc := make(chan *ssm.GetCommandInvocationOutput)
+	svc := ssm.New(sess.Session)
 
-	scoChan := make(chan *ssm.SendCommandOutput)
-	errChan := make(chan error)
+	if scOutput, err := svc.SendCommand(input); err == nil {
 
-	/*
-		In a standard deployment, SSM allows us run commands on a maximum of
-		up to 50 instances simultaneously.
-
-		(Technically, it does an exponential deployment, where it deploys to n^2
-		instances at a time (up to 50), where n is the last number of instances
-		on which the command completed.)
-
-		To speed up execution, we can split the instances into arbitrarily-sized
-		batches and run the command on every batch concurrently. In the current
-		implementation, we are effectively using a batch size of 1 for maximum
-		concurrency.
-	*/
-
-	for _, instance := range instances {
-		go invocation.RunSSMCommand(sess, params, dryRun, scoChan, errChan, *instance.InstanceId)
-		output, err := <-scoChan, <-errChan
-
-		if err != nil {
-			invError = multierror.Append(invError, err)
+		// Watch status of invocation to see when it's done and we can get the output
+		for done := false; !done; time.Sleep(2 * time.Second) {
+			if done, err = checkInvocationStatus(svc, scOutput.Command.CommandId); err != nil {
+				ec <- err
+				break
+			}
 		}
 
-		if output != nil {
-			addInvocationInfo(output, &commandOutput)
+		lciInput := &ssm.ListCommandInvocationsInput{
+			CommandId: scOutput.Command.CommandId,
 		}
-	}
 
-	// Fetch the results of our invocation for all provided instances
-	invocationStatus, err := invocation.GetCommandInvocationResult(sess, commandOutput.Output...)
-	if err != nil {
-		// If we somehow throw an error here, something has gone screwy with our invocation or the target instance
-		// See the docs on ssm.GetCommandInvocation() for error details
-		invError = multierror.Append(invError, err)
-	}
+		if err := svc.ListCommandInvocationsPages(lciInput, func(page *ssm.ListCommandInvocationsOutput, lastPage bool) bool {
+			for _, entry := range page.CommandInvocations {
+				// Fetch the results of our invocation for all provided instances
+				go invocation.GetResult(svc, scOutput.Command.CommandId, entry.InstanceId, oc, ec)
 
-	// Iterate through all retrieved invocation results to add some extra context
-	addInvocationResults(invocationStatus, resultsPool, sp)
-	return invError
+				// Wait for results to return until the combined total of results and errors
+				select {
+				case result := <-oc:
+					addInvocationResults(results, sess, result)
+				}
+			}
+
+			// Last page, break out
+			if page.NextToken == nil {
+				return false
+			}
+
+			lciInput.SetNextToken(*page.NextToken)
+			return true
+		}); err != nil {
+			ec <- err
+		}
+
+	} else {
+		ec <- err
+	}
 }
 
-func addInvocationInfo(info *ssm.SendCommandOutput, infoPool *invocation.CommandOutputSafe) {
-	if info != nil {
-		infoPool.Lock()
-		infoPool.Output = append(infoPool.Output, info)
-		infoPool.Unlock()
-	}
-
-}
-
-func addInvocationResults(info []*ssm.GetCommandInvocationOutput, results *invocation.ResultSafe, session *session.Pool) {
+func addInvocationResults(results *invocation.ResultSafe, session *session.Pool, info ...*ssm.GetCommandInvocationOutput) {
 	for _, v := range info {
 		var result = &invocation.Result{
 			InvocationResult: v,
