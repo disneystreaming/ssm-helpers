@@ -2,6 +2,7 @@ package ssm
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -77,7 +78,8 @@ func checkInvocationStatus(ctx ssmiface.SSMAPI, commandID *string) (done bool, e
 }
 
 // RunInvocations invokes an SSM document with given parameters on the provided slice of instances
-func RunInvocations(sess *session.Pool, input *ssm.SendCommandInput, results *invocation.ResultSafe, ec chan error) {
+func RunInvocations(sess *session.Pool, wg *sync.WaitGroup, input *ssm.SendCommandInput, results *invocation.ResultSafe, ec chan error) {
+	defer wg.Done()
 	oc := make(chan *ssm.GetCommandInvocationOutput)
 	svc := ssm.New(sess.Session)
 

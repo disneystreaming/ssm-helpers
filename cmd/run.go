@@ -5,6 +5,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ssm"
@@ -139,10 +140,20 @@ func runCommand(cmd *cobra.Command, args []string) {
 
 	ec := make(chan error)
 	var output invocation.ResultSafe
+	var wg sync.WaitGroup
 
 	for _, sess := range sessionPool.Sessions {
-		ssmx.RunInvocations(sess, sciInput, &output, ec)
+		wg.Add(1)
+		go ssmx.RunInvocations(sess, &wg, sciInput, &output, ec)
 	}
+
+	select {
+	case err := <-ec:
+		log.Error(err)
+	default:
+	}
+
+	wg.Wait()
 
 	// Hide results if --verbose is set to quiet or terse
 	if !dryRunFlag {
