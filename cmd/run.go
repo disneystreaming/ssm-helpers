@@ -39,7 +39,6 @@ func runCommand(cmd *cobra.Command, args []string) {
 	cmdutil.ValidateArgs(cmd, args)
 
 	commandList := cmdutil.GetCommandFlagStringSlice(cmd)
-	dryRunFlag := cmdutil.GetFlagBool(cmd.Parent(), "dry-run")
 	profileList := cmdutil.GetFlagStringSlice(cmd.Parent(), "profile")
 	regionList := cmdutil.GetFlagStringSlice(cmd.Parent(), "region")
 	filterList := cmdutil.GetFlagStringSlice(cmd.Parent(), "filter")
@@ -158,11 +157,8 @@ func runCommand(cmd *cobra.Command, args []string) {
 	wg.Wait()
 
 	// Hide results if --verbose is set to quiet or terse
-	if !dryRunFlag {
-		log.Infof("%-24s %-15s %-15s %s\n", "Instance ID", "Region", "Profile", "Status")
-	}
 
-	var successCounter, failedCounter int
+	log.Infof("%-24s %-15s %-15s %s\n", "Instance ID", "Region", "Profile", "Status")
 
 	var successCounter, failedCounter int
 	for _, v := range output.InvocationResults {
@@ -182,12 +178,10 @@ func runCommand(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	if !dryRunFlag {
-		log.Infof("Execution results: %d SUCCESS, %d FAILED", successCounter, failedCounter)
-		if failedCounter > 0 {
-			// Exit code 1 to indicate that there was some sort of error returned from invocation
-			os.Exit(1)
-		}
+	log.Infof("Execution results: %d SUCCESS, %d FAILED", successCounter, failedCounter)
+	if failedCounter > 0 {
+		// Exit code 1 to indicate that there was some sort of error returned from invocation
+		os.Exit(1)
 	}
 
 	return
