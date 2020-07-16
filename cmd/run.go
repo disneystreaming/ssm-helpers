@@ -164,23 +164,22 @@ func runCommand(cmd *cobra.Command, args []string) {
 
 	var successCounter, failedCounter int
 
+	var successCounter, failedCounter int
 	for _, v := range output.InvocationResults {
-
-		// Hide results if --verbose is set to quiet or terse
-		if v.Status != "Success" {
-			// Always output error info to stderr
-			log.Errorf("%-24s %-15s %-15s %s", *v.InvocationResult.InstanceId, v.Region, v.ProfileName, *v.InvocationResult.StatusDetails)
-			log.Error(*v.InvocationResult.StandardErrorContent)
-
-			failedCounter++
-		} else {
-			// Output stdout from invocations to stdout
+		switch v.Status {
+		case "Success":
 			log.Infof("%-24s %-15s %-15s %s", *v.InvocationResult.InstanceId, v.Region, v.ProfileName, *v.InvocationResult.StatusDetails)
 			log.Info(*v.InvocationResult.StandardOutputContent)
-
 			successCounter++
+		case "Failed":
+			log.Errorf("%-24s %-15s %-15s %s", *v.InvocationResult.InstanceId, v.Region, v.ProfileName, *v.InvocationResult.StatusDetails)
+			log.Error(*v.InvocationResult.StandardErrorContent)
+			failedCounter++
+		default:
+			// Non-"Failed" statuses are failures, but don't have any output
+			log.Errorf("%-24s %-15s %-15s %s", *v.InvocationResult.InstanceId, v.Region, v.ProfileName, *v.InvocationResult.StatusDetails)
+			failedCounter++
 		}
-
 	}
 
 	if !dryRunFlag {
