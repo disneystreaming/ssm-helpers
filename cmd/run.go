@@ -144,7 +144,9 @@ func runCommand(cmd *cobra.Command, args []string) {
 
 	for _, sess := range sessionPool.Sessions {
 		wg.Add(1)
-		go ssmx.RunInvocations(sess, &wg, sciInput, &output, ec)
+		ssmClient := ssm.New(sess.Session)
+		log.Debugf("Starting invocation targeting account %s in %s", sess.ProfileName, *sess.Session.Config.Region)
+		go ssmx.RunInvocations(sess, ssmClient, &wg, sciInput, &output, ec)
 	}
 
 	select {

@@ -78,29 +78,41 @@ func checkInvocationStatus(ctx ssmiface.SSMAPI, commandID *string) (done bool, e
 }
 
 // RunInvocations invokes an SSM document with given parameters on the provided slice of instances
-func RunInvocations(sess *session.Pool, wg *sync.WaitGroup, input *ssm.SendCommandInput, results *invocation.ResultSafe, ec chan error) {
+func RunInvocations(sess *session.Pool, ctx ssmiface.SSMAPI, wg *sync.WaitGroup, input *ssm.SendCommandInput, results *invocation.ResultSafe, ec chan error) {
 	defer wg.Done()
+
 	oc := make(chan *ssm.GetCommandInvocationOutput)
-	svc := ssm.New(sess.Session)
+	var scOutput *ssm.SendCommandOutput
+	var err error
 
-	if scOutput, err := svc.SendCommand(input); err == nil {
+	// Send our command input to SSM
+	if scOutput, err = ctx.SendCommand(input); err != nil {
+		ec <- err
+		return
+	}
 
-		// Watch status of invocation to see when it's done and we can get the output
-		for done := false; !done; time.Sleep(2 * time.Second) {
-			if done, err = checkInvocationStatus(svc, scOutput.Command.CommandId); err != nil {
-				ec <- err
-				break
-			}
+	commandID := scOutput.Command.CommandId
+
+	// Watch status of invocation to see when it's done and we can get the output
+	for done := false; !done; time.Sleep(2 * time.Second) {
+		if done, err = checkInvocationStatus(ctx, commandID); err != nil {
+			ec <- err
+			break
 		}
+	}
 
-		lciInput := &ssm.ListCommandInvocationsInput{
-			CommandId: scOutput.Command.CommandId,
-		}
+	// Set up our LCI input object
+	lciInput := &ssm.ListCommandInvocationsInput{
+		CommandId: commandID,
+	}
 
-		if err := svc.ListCommandInvocationsPages(lciInput, func(page *ssm.ListCommandInvocationsOutput, lastPage bool) bool {
+	// Iterate through the details of the invocations returned
+	if err = ctx.ListCommandInvocationsPages(
+		lciInput,
+		func(page *ssm.ListCommandInvocationsOutput, lastPage bool) bool {
 			for _, entry := range page.CommandInvocations {
 				// Fetch the results of our invocation for all provided instances
-				go invocation.GetResult(svc, scOutput.Command.CommandId, entry.InstanceId, oc, ec)
+				go invocation.GetResult(ctx, commandID, entry.InstanceId, oc, ec)
 
 				// Wait for results to return until the combined total of results and errors
 				select {
@@ -117,12 +129,9 @@ func RunInvocations(sess *session.Pool, wg *sync.WaitGroup, input *ssm.SendComma
 			lciInput.SetNextToken(*page.NextToken)
 			return true
 		}); err != nil {
-			ec <- err
-		}
-
-	} else {
 		ec <- err
 	}
+
 }
 
 func addInvocationResults(results *invocation.ResultSafe, session *session.Pool, info ...*ssm.GetCommandInvocationOutput) {
