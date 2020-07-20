@@ -55,7 +55,11 @@ func GetResult(ctx ssmiface.SSMAPI, commandID *string, instanceID *string, gci c
 
 	switch {
 	case err != nil:
-		ec <- err
+		ec <- fmt.Errorf(
+			`Error when calling GetCommandInvocation API with args:\n
+			CommandId: %v\n
+			InstanceId: %v\n%v`,
+			*commandID, *instanceID, err)
 	case status != nil:
 		gci <- status
 	}

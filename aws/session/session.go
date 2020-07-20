@@ -5,19 +5,20 @@ import (
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/sirupsen/logrus"
 
 	"github.com/disneystreaming/ssm-helpers/aws/config"
 )
 
 // NewPoolSafe is used to create a pool of AWS sessions with different profile/region permutations
-func NewPoolSafe(profiles []string, regions []string) (allSessions *PoolSafe) {
+func NewPoolSafe(profiles []string, regions []string, logger *logrus.Logger) (allSessions *PoolSafe) {
 
 	wg := sync.WaitGroup{}
 	sp := &PoolSafe{
 		Sessions: make(map[string]*Pool),
 	}
 
-	if regions != nil {
+	if len(regions) == 0 {
 		wg.Add(len(profiles) * len(regions))
 		for _, p := range profiles {
 			for _, r := range regions {
@@ -29,8 +30,9 @@ func NewPoolSafe(profiles []string, regions []string) (allSessions *PoolSafe) {
 					sp.Lock()
 
 					session := Pool{
-						Session:     newSession,
+						Logger:      logger,
 						ProfileName: p,
+						Session:     newSession,
 					}
 					sp.Sessions[fmt.Sprintf("%s-%s", p, r)] = &session
 					//sp.Sessions = append(sp.Sessions, &session)
@@ -49,12 +51,11 @@ func NewPoolSafe(profiles []string, regions []string) (allSessions *PoolSafe) {
 				sp.Lock()
 
 				session := Pool{
-					Session:     newSession,
+					Logger:      logger,
 					ProfileName: p,
+					Session:     newSession,
 				}
 				sp.Sessions[fmt.Sprintf("%s", p)] = &session
-
-				//sp.Sessions = append(sp.Sessions, &session)
 				defer sp.Unlock()
 			}(p)
 		}

@@ -119,68 +119,70 @@ func runCommand(cmd *cobra.Command, args []string) {
 		targets = util.SliceToTargets(filterList)
 	}
 
-	// ssm.SendCommandInput objects require parameters for the DocumentName chosen
-	params := &invocation.RunShellScriptParameters{
-		/*
-			For AWS-RunShellScript, the only required parameter is "commands",
-			which is the shell command to be executed on the target. To emulate
-			the original script, we also set "executionTimeout" to 10 minutes.
-		*/
-		"commands":         aws.StringSlice(commandList),
-		"executionTimeout": aws.StringSlice([]string{"600"}),
-	}
+	log.Info("Command(s) to be executed:\n", strings.Join(commandList, "\n"))
 
 	sciInput := &ssm.SendCommandInput{
 		InstanceIds:  aws.StringSlice(instanceList),
 		Targets:      targets,
 		DocumentName: aws.String("AWS-RunShellScript"),
-		Parameters:   *params,
+		Parameters: map[string][]*string{
+			/*
+				ssm.SendCommandInput objects require parameters for the DocumentName chosen
+
+				For AWS-RunShellScript, the only required parameter is "commands",
+				which is the shell command to be executed on the target. To emulate
+				the original script, we also set "executionTimeout" to 10 minutes.
+			*/
+			"commands":         aws.StringSlice(commandList),
+			"executionTimeout": aws.StringSlice([]string{"600"}),
+		},
 	}
 
-	ec := make(chan error)
-	var output invocation.ResultSafe
-	var wg sync.WaitGroup
+	// Set up our AWS session for each permutation of profile + region
+	sessionPool := session.NewPoolSafe(profileList, regionList, log)
+	wg, output := sync.WaitGroup{}, invocation.ResultSafe{}
 
 	for _, sess := range sessionPool.Sessions {
 		wg.Add(1)
 		ssmClient := ssm.New(sess.Session)
 		log.Debugf("Starting invocation targeting account %s in %s", sess.ProfileName, *sess.Session.Config.Region)
-		go ssmx.RunInvocations(sess, ssmClient, &wg, sciInput, &output, ec)
+		go ssmx.RunInvocations(sess, ssmClient, &wg, sciInput, &output)
 	}
 
-	select {
-	case err := <-ec:
-		log.Error(err)
-	default:
-	}
+	wg.Wait() // Wait for each account/region combo to finish
 
-	wg.Wait()
-
-	// Hide results if --verbose is set to quiet or terse
-
-	log.Infof("%-24s %-15s %-15s %s\n", "Instance ID", "Region", "Profile", "Status")
-
+	resultFormat := "%-24s %-15s %-15s %s"
 	var successCounter, failedCounter int
+
+	// Output our results
+	log.Infof(resultFormat, "Instance ID", "Region", "Profile", "Status")
 	for _, v := range output.InvocationResults {
 		switch v.Status {
 		case "Success":
-			log.Infof("%-24s %-15s %-15s %s", *v.InvocationResult.InstanceId, v.Region, v.ProfileName, *v.InvocationResult.StatusDetails)
-			log.Info(*v.InvocationResult.StandardOutputContent)
+			log.Infof(resultFormat, *v.InvocationResult.InstanceId, v.Region, v.ProfileName, *v.InvocationResult.StatusDetails)
 			successCounter++
-		case "Failed":
-			log.Errorf("%-24s %-15s %-15s %s", *v.InvocationResult.InstanceId, v.Region, v.ProfileName, *v.InvocationResult.StatusDetails)
-			log.Error(*v.InvocationResult.StandardErrorContent)
-			failedCounter++
 		default:
-			// Non-"Failed" statuses are failures, but don't have any output
-			log.Errorf("%-24s %-15s %-15s %s", *v.InvocationResult.InstanceId, v.Region, v.ProfileName, *v.InvocationResult.StatusDetails)
+			log.Errorf(resultFormat, *v.InvocationResult.InstanceId, v.Region, v.ProfileName, *v.InvocationResult.StatusDetails)
 			failedCounter++
+		}
+
+		// stdout is always written back at info level
+		if *v.InvocationResult.StandardOutputContent != "" {
+			log.Info(*v.InvocationResult.StandardOutputContent)
+		}
+
+		// stderr is written back at warn if the invocation was successful, and error if not
+		if *v.InvocationResult.StandardErrorContent != "" {
+			if v.Status == "Success" {
+				log.Warn(*v.InvocationResult.StandardErrorContent)
+			} else {
+				log.Error(*v.InvocationResult.StandardErrorContent)
+			}
 		}
 	}
 
 	log.Infof("Execution results: %d SUCCESS, %d FAILED", successCounter, failedCounter)
-	if failedCounter > 0 {
-		// Exit code 1 to indicate that there was some sort of error returned from invocation
+	if failedCounter > 0 { // Exit code 1 to indicate that there was some sort of error returned from invocation
 		os.Exit(1)
 	}
 

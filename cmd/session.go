@@ -82,7 +82,7 @@ func startSessionCommand(cmd *cobra.Command, args []string) {
 	}
 
 	// Set up our AWS session for each permutation of profile + region
-	sessionPool := session.NewPoolSafe(profileList, regionList)
+	sessionPool := session.NewPoolSafe(profileList, regionList, log)
 
 	// Set up our filters
 	var filterMaps []map[string]string

@@ -4,10 +4,12 @@ import (
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/sirupsen/logrus"
 )
 
 // Pool is a type that holds an instance of an AWS session as well as the profile name used to initialize it
 type Pool struct {
+	Logger      *logrus.Logger
 	Session     *session.Session
 	ProfileName string
 }

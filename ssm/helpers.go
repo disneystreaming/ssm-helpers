@@ -62,7 +62,7 @@ func checkInvocationStatus(ctx ssmiface.SSMAPI, commandID *string) (done bool, e
 	if invocation, err = ctx.ListCommands(&ssm.ListCommandsInput{
 		CommandId: commandID,
 	}); err != nil {
-		return true, err
+		return true, fmt.Errorf("Encountered an error when trying to call the ListCommands API with CommandId: %v\n%v", *commandID, err)
 	}
 
 	if len(invocation.Commands) != 1 {
@@ -78,16 +78,17 @@ func checkInvocationStatus(ctx ssmiface.SSMAPI, commandID *string) (done bool, e
 }
 
 // RunInvocations invokes an SSM document with given parameters on the provided slice of instances
-func RunInvocations(sess *session.Pool, ctx ssmiface.SSMAPI, wg *sync.WaitGroup, input *ssm.SendCommandInput, results *invocation.ResultSafe, ec chan error) {
+func RunInvocations(sess *session.Pool, ctx ssmiface.SSMAPI, wg *sync.WaitGroup, input *ssm.SendCommandInput, results *invocation.ResultSafe) {
 	defer wg.Done()
 
 	oc := make(chan *ssm.GetCommandInvocationOutput)
+	ec := make(chan error)
 	var scOutput *ssm.SendCommandOutput
 	var err error
 
 	// Send our command input to SSM
 	if scOutput, err = ctx.SendCommand(input); err != nil {
-		ec <- err
+		sess.Logger.Errorf("Error when calling the SendCommand API for account %v in %v\n%v", sess.ProfileName, *sess.Session.Config.Region, err)
 		return
 	}
 
@@ -96,8 +97,8 @@ func RunInvocations(sess *session.Pool, ctx ssmiface.SSMAPI, wg *sync.WaitGroup,
 	// Watch status of invocation to see when it's done and we can get the output
 	for done := false; !done; time.Sleep(2 * time.Second) {
 		if done, err = checkInvocationStatus(ctx, commandID); err != nil {
-			ec <- err
-			break
+			sess.Logger.Error(err)
+			return
 		}
 	}
 
@@ -118,6 +119,8 @@ func RunInvocations(sess *session.Pool, ctx ssmiface.SSMAPI, wg *sync.WaitGroup,
 				select {
 				case result := <-oc:
 					addInvocationResults(results, sess, result)
+				case err := <-ec:
+					sess.Logger.Error(err)
 				}
 			}
 
@@ -129,7 +132,7 @@ func RunInvocations(sess *session.Pool, ctx ssmiface.SSMAPI, wg *sync.WaitGroup,
 			lciInput.SetNextToken(*page.NextToken)
 			return true
 		}); err != nil {
-		ec <- err
+		sess.Logger.Error(fmt.Errorf("Error when calling ListCommandInvocations API\n%v", err))
 	}
 
 }
