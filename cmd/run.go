@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bufio"
 	"os"
 	"runtime"
 	"strings"
@@ -36,87 +35,60 @@ func newCommandSSMRun() *cobra.Command {
 }
 
 func runCommand(cmd *cobra.Command, args []string) {
+	// Get all of our CLI flag values
 	cmdutil.ValidateArgs(cmd, args)
-
 	commandList := cmdutil.GetCommandFlagStringSlice(cmd)
 	profileList := cmdutil.GetFlagStringSlice(cmd.Parent(), "profile")
 	regionList := cmdutil.GetFlagStringSlice(cmd.Parent(), "region")
 	filterList := cmdutil.GetFlagStringSlice(cmd.Parent(), "filter")
 	instanceList := cmdutil.GetFlagStringSlice(cmd, "instance")
+	allProfilesFlag := cmdutil.GetFlagBool(cmd, "all-profiles")
+
 	// Get the number of cores available for parallelization
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	if len(instanceList) > 0 && len(filterList) > 0 {
-		cmdutil.UsageError(cmd, "The --filter and --instance flags cannot be used simultaneously.")
-		os.Exit(1)
-	}
-
-	if len(instanceList) > 50 {
-		cmdutil.UsageError(cmd, "The --instance flag can only be used to specify a maximum of 50 instances.")
-	}
-
 	// If the --commands and --file options are specified, we append the script contents to the specified commands
 	if inputFile := cmdutil.GetFlagString(cmd, "file"); inputFile != "" {
-		// Open our file for reading
-		file, err := os.Open(inputFile)
-		if err != nil {
-			log.Fatalf("Could not open file at %s\n%s", inputFile, err)
-		}
-
-		defer file.Close()
-
-		// Grab each line of the script and append it to the command slice
-		// Scripts using a line continuation character (\) will work fine here too!
-		scanner := bufio.NewScanner(file)
-		for scanner.Scan() {
-			commandList = append(commandList, scanner.Text())
-		}
-
-		if err := scanner.Err(); err != nil {
-			log.Fatalf("Issue when trying to read input file\n%s", err)
+		if err := util.ReadScriptFile(inputFile, &commandList); err != nil {
+			log.Fatal(err)
 		}
 	}
 
-	if commandList == nil || len(commandList) == 0 {
+	switch { // These cases are all fatal for our invocations or result in undefined behavior
+	case len(instanceList) > 0 && len(filterList) > 0:
+		cmdutil.UsageError(cmd, "The --filter and --instance flags cannot be used simultaneously.")
+	case len(instanceList) > 50:
+		cmdutil.UsageError(cmd, "The --instance flag can only be used to specify a maximum of 50 instances.")
+	case len(commandList) == 0:
 		cmdutil.UsageError(cmd, "Please specify a command to be run on your instances.")
-		os.Exit(1)
+	case len(profileList) > 0 && allProfilesFlag:
+		cmdutil.UsageError(cmd, "The --profile and --all-profiles flags cannot be used simultaneously.")
 	}
 
-	log.Info("Command(s) to be executed: ", strings.Join(commandList, ","))
-
-	if len(profileList) == 0 {
-		env, exists := os.LookupEnv("AWS_PROFILE")
-		if exists {
-			profileList = []string{env}
-		} else {
-			profileList = []string{"default"}
-		}
-	}
-
-	if len(regionList) == 0 {
-		env, exists := os.LookupEnv("AWS_REGION")
-		if exists == false {
-			regionList = []string{env}
-		}
-	}
-
-	// If --all-profiles is set, we call getAWSProfiles() and iterate through the user's ~/.aws/config
-	if allProfilesFlag := cmdutil.GetFlagBool(cmd, "all-profiles"); allProfilesFlag {
-		profileList, err := awsx.GetAWSProfiles()
-		if profileList == nil || err != nil {
-			log.Error("Could not load profiles.", err)
-			os.Exit(1)
-		}
-	}
-
-	// Set up our AWS session for each permutation of profile + region
-	sessionPool := session.NewPoolSafe(profileList, regionList)
-
-	// Convert the filter slice to a map
 	targets := []*ssm.Target{}
 
-	if len(filterList) > 0 {
-		targets = util.SliceToTargets(filterList)
+args:
+	for {
+		switch {
+		case allProfilesFlag: // If --all-profiles is set, we call getAWSProfiles() and iterate through the user's ~/.aws/config
+			if profileList, err := awsx.GetAWSProfiles(); profileList == nil || err != nil {
+				log.Fatalf("Could not load profiles.\n%v", err)
+			}
+		case len(filterList) > 0 && len(targets) == 0: // Convert the filter slice to a map
+			targets = util.SliceToTargets(filterList)
+		case len(profileList) == 0: // If no profile is specified, look it up or fall back to "default"
+			if env, exists := os.LookupEnv("AWS_PROFILE"); !exists {
+				profileList = []string{env}
+			} else {
+				profileList = []string{"default"}
+			}
+		case len(regionList) == 0: // If no region is specified, attempt to look it up
+			if env, exists := os.LookupEnv("AWS_REGION"); !exists {
+				regionList = []string{env}
+			}
+		default:
+			break args
+		}
 	}
 
 	log.Info("Command(s) to be executed:\n", strings.Join(commandList, "\n"))
