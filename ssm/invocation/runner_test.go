@@ -25,7 +25,7 @@ func TestRunSSMCommand(t *testing.T) {
 	}
 
 	t.Run("dry run flag false", func(t *testing.T) {
-		go RunSSMCommand(mockSvc, mockParams, false, resultChan, errChan, "i-123456", "i-654321")
+		go RunSSMCommand(mockSvc, mockParams, "1", "0", false, resultChan, errChan, "i-123456", "i-654321")
 		output, _ := <-resultChan, <-errChan
 
 		// Do we have two instance IDs in our output?
@@ -36,7 +36,21 @@ func TestRunSSMCommand(t *testing.T) {
 	})
 
 	t.Run("dry run flag true", func(t *testing.T) {
-		go RunSSMCommand(mockSvc, mockParams, true, resultChan, errChan, "i-123456", "i-654321")
+		go RunSSMCommand(mockSvc, mockParams, "1", "0", true, resultChan, errChan, "i-123456", "i-654321")
+		output, _ := <-resultChan, <-errChan
+
+		assert.Nil(output, "Dry run flag enabled, should not have received any output")
+	})
+
+	t.Run("max concurrency flag 10%", func(t *testing.T) {
+		go RunSSMCommand(mockSvc, mockParams, "10%", "0", true, resultChan, errChan, "i-123456", "i-654321")
+		output, _ := <-resultChan, <-errChan
+
+		assert.Nil(output, "Dry run flag enabled, should not have received any output")
+	})
+
+	t.Run("max errors flag 10%", func(t *testing.T) {
+		go RunSSMCommand(mockSvc, mockParams, "1", "10%", true, resultChan, errChan, "i-123456", "i-654321")
 		output, _ := <-resultChan, <-errChan
 
 		assert.Nil(output, "Dry run flag enabled, should not have received any output")

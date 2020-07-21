@@ -14,14 +14,17 @@ import (
 // RunSSMCommand uses an SSM session, pre-defined SSM document parameters, the dry run flag, and any number of instance IDs and executes the given command
 // using the AWS-RunShellScript SSM document. It returns an *ssm.SendCommandOutput object, which contains the execution ID of the command, which we use to
 // check the progress/status of the invocation.
-func RunSSMCommand(session ssmiface.SSMAPI, params *RunShellScriptParameters, dryRunFlag bool, resultChan chan *ssm.SendCommandOutput, errChan chan error, instanceID ...string) {
+func RunSSMCommand(session ssmiface.SSMAPI, params *RunShellScriptParameters, maxConcurrency string, maxErrors string, dryRunFlag bool, resultChan chan *ssm.SendCommandOutput, errChan chan error, instanceID ...string) {
 	var err error
 	var output *ssm.SendCommandOutput
 
 	ssmCommandInput := &ssm.SendCommandInput{
-		DocumentName: aws.String("AWS-RunShellScript"),
-		InstanceIds:  aws.StringSlice(instanceID),
-		Parameters:   *params}
+		DocumentName:   aws.String("AWS-RunShellScript"),
+		InstanceIds:    aws.StringSlice(instanceID),
+		Parameters:     *params,
+		MaxConcurrency: aws.String(maxConcurrency),
+		MaxErrors:      aws.String(maxErrors),
+	}
 	if !dryRunFlag {
 		output, err = session.SendCommand(ssmCommandInput)
 	}

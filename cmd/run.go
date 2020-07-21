@@ -32,6 +32,8 @@ func newCommandSSMRun() *cobra.Command {
 	cmdutil.AddCommandFlag(cmd)
 	cmdutil.AddFileFlag(cmd, "Specify the path to a shell script to use as input for the AWS-RunShellScript document.\nThis can be used in combination with the --commands/-c flag, and will be run after the specified commands.")
 	cmdutil.AddLimitFlag(cmd, 0, "Set a limit for the number of instance results returned per profile/region combination (0 = no limit)")
+	cmdutil.AddMaxConcurrencyFlag(cmd, "50", "Max targets to run the command in parallel. Both numbers, such as 50, and percentages, such as 50%, are allowed")
+	cmdutil.AddMaxErrorsFlag(cmd, "0", "Max errors allowed before running on additional targets. Both numbers, such as 10, and percentages, such as 10%, are allowed")
 	return cmd
 }
 
@@ -44,6 +46,8 @@ func runCommand(cmd *cobra.Command, args []string) {
 	regionList := cmdutil.GetFlagStringSlice(cmd.Parent(), "region")
 	filterList := cmdutil.GetFlagStringSlice(cmd.Parent(), "filter")
 	limitFlag := cmdutil.GetFlagInt(cmd, "limit")
+	maxConcurrencyFlag := cmdutil.GetFlagString(cmd, "max-concurrency")
+	maxErrorsFlag := cmdutil.GetFlagString(cmd, "max-errors")
 	instanceList := cmdutil.GetFlagStringSlice(cmd, "instance")
 	// Get the number of cores available for parallelization
 	runtime.GOMAXPROCS(runtime.NumCPU())
@@ -112,6 +116,19 @@ func runCommand(cmd *cobra.Command, args []string) {
 			os.Exit(1)
 		}
 	}
+	if !cmdutil.ValidateIntOrPercantageValue(maxConcurrencyFlag) {
+		log.Error(`--max-concurrency: Invalid value passed
+			Length Constraints: Minimum length of 1. Maximum length of 7.
+			Pattern: ^([1-9][0-9]*|[1-9][0-9]%|[1-9]%|100%)$`)
+		os.Exit(1)
+	}
+
+	if !cmdutil.ValidateIntOrPercantageValue(maxErrorsFlag) {
+		log.Error(`--max-errors: Invalid value passed
+			Length Constraints: Minimum length of 1. Maximum length of 7.
+			Pattern: ^([1-9][0-9]*|[0]|[1-9][0-9]%|[0-9]%|100%)$`)
+		os.Exit(1)
+	}
 
 	// Set up our AWS session for each permutation of profile + region
 	sessionPool := session.NewPoolSafe(profileList, regionList)
@@ -164,7 +181,7 @@ func runCommand(cmd *cobra.Command, args []string) {
 				limitFlag = len(info)
 			}
 
-			if err = ssmx.RunInvocations(sess, svc, info[:limitFlag], params, dryRunFlag, completedInvocations); err != nil {
+			if err = ssmx.RunInvocations(sess, svc, info[:limitFlag], params, dryRunFlag, maxConcurrencyFlag, maxErrorsFlag, completedInvocations); err != nil {
 				log.Error(err)
 			}
 		}(sess, &completedInvocations)

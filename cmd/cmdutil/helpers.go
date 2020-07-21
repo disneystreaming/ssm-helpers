@@ -3,6 +3,7 @@ package cmdutil
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -47,6 +48,16 @@ func AddLimitFlag(cmd *cobra.Command, limit int, desc string) {
 	cmd.PersistentFlags().IntP("limit", "l", limit, desc)
 }
 
+// AddMaxConcurrencyFlag adds --max-concurrency to command
+func AddMaxConcurrencyFlag(cmd *cobra.Command, defaultMax string, desc string) {
+	cmd.PersistentFlags().String("max-concurrency", defaultMax, desc)
+}
+
+// AddMaxErrorsFlag adds --max-errors to command
+func AddMaxErrorsFlag(cmd *cobra.Command, defaultMax string, desc string) {
+	cmd.PersistentFlags().String("max-errors", defaultMax, desc)
+}
+
 // AddInstanceFlag adds --instance to command
 func AddInstanceFlag(cmd *cobra.Command) {
 	cmd.PersistentFlags().StringSliceP("instance", "i", nil, "Specify what instance IDs you want to target.\nMultiple allowed, delimited by commas (e.g. --instance i-12345,i-23456)")
@@ -83,6 +94,21 @@ func ValidateArgs(cmd *cobra.Command, args []string) {
 	if len(args) != 0 {
 		UsageError(cmd, "Unexpected args: %v", strings.Join(args, " "))
 	}
+}
+
+func ValidateIntOrPercantageValue(value string) bool {
+	valid := false
+	if len(value) >= 1 && len(value) <= 7 {
+		if strings.HasSuffix(value, "%") {
+			value = strings.Trim(value, "%")
+		}
+
+		if _, err := strconv.Atoi(value); err == nil {
+			valid = true
+		}
+	}
+
+	return valid
 }
 
 // UsageError Prints error and tells users to use -h

@@ -54,7 +54,7 @@ func addInstanceInfo(instanceID *string, tags []ec2helpers.InstanceTags, instanc
 }
 
 // RunInvocations invokes an SSM document with given parameters on the provided slice of instances
-func RunInvocations(sp *session.Pool, sess *ssm.SSM, instances []*ssm.InstanceInformation, params *invocation.RunShellScriptParameters, dryRun bool, resultsPool *invocation.ResultSafe) (err error) {
+func RunInvocations(sp *session.Pool, sess *ssm.SSM, instances []*ssm.InstanceInformation, params *invocation.RunShellScriptParameters, dryRun bool, maxConcurrency string, maxErrors string, resultsPool *invocation.ResultSafe) (err error) {
 	var commandOutput invocation.CommandOutputSafe
 	var invError error
 
@@ -76,7 +76,7 @@ func RunInvocations(sp *session.Pool, sess *ssm.SSM, instances []*ssm.InstanceIn
 	*/
 
 	for _, instance := range instances {
-		go invocation.RunSSMCommand(sess, params, dryRun, scoChan, errChan, *instance.InstanceId)
+		go invocation.RunSSMCommand(sess, params, maxConcurrency, maxErrors, dryRun, scoChan, errChan, *instance.InstanceId)
 		output, err := <-scoChan, <-errChan
 
 		if err != nil {
@@ -107,7 +107,6 @@ func addInvocationInfo(info *ssm.SendCommandOutput, infoPool *invocation.Command
 		infoPool.Output = append(infoPool.Output, info)
 		infoPool.Unlock()
 	}
-
 }
 
 func addInvocationResults(info []*ssm.GetCommandInvocationOutput, results *invocation.ResultSafe, session *session.Pool) {
