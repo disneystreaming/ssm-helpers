@@ -5,12 +5,14 @@ import (
 	"os"
 
 	"github.com/aws/aws-sdk-go/service/ssm"
+
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+
 	awsx "github.com/disneystreaming/ssm-helpers/aws"
 	"github.com/disneystreaming/ssm-helpers/cmd/cmdutil"
 	"github.com/disneystreaming/ssm-helpers/cmd/logutil"
 	"github.com/disneystreaming/ssm-helpers/util"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 )
 
 func addBaseFlags(cmd *cobra.Command) {
@@ -25,6 +27,8 @@ func addBaseFlags(cmd *cobra.Command) {
 func addRunFlags(cmd *cobra.Command) {
 	cmdutil.AddCommandFlag(cmd)
 	cmdutil.AddFileFlag(cmd, "Specify the path to a shell script to use as input for the AWS-RunShellScript document.\nThis can be used in combination with the --commands/-c flag, and will be run after the specified commands.")
+	cmdutil.AddMaxConcurrencyFlag(cmd, "50", "Max targets to run the command in parallel. Both numbers, such as 50, and percentages, such as 50%, are allowed")
+	cmdutil.AddMaxErrorsFlag(cmd, "0", "Max errors allowed before running on additional targets. Both numbers, such as 10, and percentages, such as 10%, are allowed")
 }
 
 func getCommandList(cmd *cobra.Command) (commandList []string, err error) {
@@ -65,7 +69,6 @@ func getFilterList(cmd *cobra.Command) (targets []*ssm.Target, err error) {
 	}
 
 	return util.SliceToTargets(filterList), nil
-
 }
 
 func getProfileList(cmd *cobra.Command) (profileList []string, err error) {
@@ -97,6 +100,34 @@ func getProfileList(cmd *cobra.Command) (profileList []string, err error) {
 	}
 
 	return profileList, nil
+}
+
+func getMaxConcurrency(cmd *cobra.Command) (maxConcurrency string, err error) {
+	if maxConcurrency, err = cmdutil.GetFlagString(cmd, "max-concurrency"); err != nil {
+		return "", err
+	}
+
+	if !cmdutil.ValidateMaxConcurrency(maxConcurrency) {
+		return "", fmt.Errorf(`--max-concurrency: Invalid value passed
+Length Constraints: Minimum length of %d. Maximum length of %d.
+Pattern: %q`, 1, 7, "^([1-9][0-9]*|[1-9][0-9]%|[1-9]%|100%)$")
+	}
+
+	return maxConcurrency, nil
+}
+
+func getMaxErrors(cmd *cobra.Command) (maxErrors string, err error) {
+	if maxErrors, err = cmdutil.GetFlagString(cmd, "max-errors"); err != nil {
+		return "", err
+	}
+
+	if !cmdutil.ValidateMaxErrors(maxErrors) {
+		return "", fmt.Errorf(`--max-errors: Invalid value passed
+Length Constraints: Minimum length of %d. Maximum length of %d.
+Pattern: %q`, 1, 7, "^([1-9][0-9]*|[0]|[1-9][0-9]%|[0-9]%|100%)$")
+	}
+
+	return maxErrors, nil
 }
 
 // validateRunFlags validates the usage of certain flags required by the run subcommand

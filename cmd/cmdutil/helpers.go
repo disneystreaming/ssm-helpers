@@ -2,6 +2,7 @@ package cmdutil
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -45,6 +46,16 @@ func AddLimitFlag(cmd *cobra.Command, limit int, desc string) {
 	cmd.Flags().IntP("limit", "l", limit, desc)
 }
 
+// AddMaxConcurrencyFlag adds --max-concurrency to command
+func AddMaxConcurrencyFlag(cmd *cobra.Command, defaultMax string, desc string) {
+	cmd.Flags().String("max-concurrency", defaultMax, desc)
+}
+
+// AddMaxErrorsFlag adds --max-errors to command
+func AddMaxErrorsFlag(cmd *cobra.Command, defaultMax string, desc string) {
+	cmd.Flags().String("max-errors", defaultMax, desc)
+}
+
 // AddInstanceFlag adds --instance to command
 func AddInstanceFlag(cmd *cobra.Command) {
 	cmd.Flags().StringSliceP("instance", "i", nil, "Specify what instance IDs you want to target.\nMultiple allowed, delimited by commas (e.g. --instance i-12345,i-23456)")
@@ -81,6 +92,36 @@ func ValidateArgs(cmd *cobra.Command, args []string) error {
 		return UsageError(cmd, "Unexpected args: %v", strings.Join(args, " "))
 	}
 	return nil
+}
+
+func ValidateMaxConcurrency(value string) bool {
+	var valid bool
+	var err error
+
+	if len(value) < 1 || len(value) > 7 {
+		return false
+	}
+
+	if valid, err = regexp.MatchString(`^([1-9][0-9]*|[1-9][0-9]%|[1-9]%|100%)$`, value); err != nil {
+		return false
+	}
+
+	return valid
+}
+
+func ValidateMaxErrors(value string) bool {
+	var valid bool
+	var err error
+
+	if len(value) < 1 || len(value) > 7 {
+		return false
+	}
+
+	if valid, err = regexp.MatchString(`^([1-9][0-9]*|[0]|[1-9][0-9]%|[0-9]%|100%)$`, value); err != nil {
+		return false
+	}
+
+	return valid
 }
 
 // UsageError Prints error and tells users to use -h
