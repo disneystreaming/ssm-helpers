@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"net"
 	"net/http"
 	"time"
 )
@@ -10,5 +11,10 @@ import (
 func NewDefaultClient() *http.Client {
 	return &http.Client{
 		Timeout: 10 * time.Second,
+		Transport: &http.Transport{
+			Dial: (&net.Dialer{
+				Timeout: 2 * time.Second,
+			}).Dial,
+		},
 	}
 }

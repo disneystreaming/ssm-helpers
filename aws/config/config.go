@@ -15,23 +15,13 @@ import (
 //
 // This means we can change our sessions to be `session.New(<whatver>, session.NewDefaultConfig())
 // If we need to override it we can swap order (last config's value wins)
-func NewDefaultConfig() *aws.Config {
+func NewDefaultConfig(region string) *aws.Config {
 	return &aws.Config{
-		HTTPClient: httpx.NewDefaultClient(),
+		CredentialsChainVerboseErrors: aws.Bool(true),
+		Region:                        aws.String(region),
+		HTTPClient:                    httpx.NewDefaultClient(),
 		Retryer: &client.DefaultRetryer{
-			NumMaxRetries:    10,
-			MaxThrottleDelay: 1500 * time.Millisecond,
-		},
-	}
-}
-
-// NewDefaultConfigWithRegion returns the same config as NewDefaultConfig, but allows a user to specify a region as well
-func NewDefaultConfigWithRegion(region string) *aws.Config {
-	return &aws.Config{
-		Region:     aws.String(region),
-		HTTPClient: httpx.NewDefaultClient(),
-		Retryer: &client.DefaultRetryer{
-			NumMaxRetries:    10,
+			NumMaxRetries:    3,
 			MaxThrottleDelay: 1500 * time.Millisecond,
 		},
 	}
