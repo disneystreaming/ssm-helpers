@@ -10,12 +10,10 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/spf13/cobra"
 
-	awsx "github.com/disneystreaming/ssm-helpers/aws"
 	"github.com/disneystreaming/ssm-helpers/aws/session"
 	"github.com/disneystreaming/ssm-helpers/cmd/cmdutil"
 	ssmx "github.com/disneystreaming/ssm-helpers/ssm"
 	"github.com/disneystreaming/ssm-helpers/ssm/invocation"
-	"github.com/disneystreaming/ssm-helpers/util"
 )
 
 func newCommandSSMRun() *cobra.Command {
@@ -28,68 +26,45 @@ func newCommandSSMRun() *cobra.Command {
 		},
 	}
 
-	cmdutil.AddCommandFlag(cmd)
-	cmdutil.AddFileFlag(cmd, "Specify the path to a shell script to use as input for the AWS-RunShellScript document.\nThis can be used in combination with the --commands/-c flag, and will be run after the specified commands.")
-	cmdutil.AddLimitFlag(cmd, 0, "Set a limit for the number of instance results returned per profile/region combination (0 = no limit)")
+	addBaseFlags(cmd)
+	addRunFlags(cmd)
+
 	return cmd
 }
 
 func runCommand(cmd *cobra.Command, args []string) {
+	var err error
+	var instanceList, commandList, profileList, regionList []string
+	var targets []*ssm.Target
+
 	// Get all of our CLI flag values
-	cmdutil.ValidateArgs(cmd, args)
-	commandList := cmdutil.GetCommandFlagStringSlice(cmd)
-	profileList := cmdutil.GetFlagStringSlice(cmd.Parent(), "profile")
-	regionList := cmdutil.GetFlagStringSlice(cmd.Parent(), "region")
-	filterList := cmdutil.GetFlagStringSlice(cmd.Parent(), "filter")
-	instanceList := cmdutil.GetFlagStringSlice(cmd, "instance")
-	allProfilesFlag := cmdutil.GetFlagBool(cmd, "all-profiles")
+	if err = cmdutil.ValidateArgs(cmd, args); err != nil {
+		log.Fatal(err)
+	}
+
+	if instanceList, err = cmdutil.GetFlagStringSlice(cmd, "instance"); err != nil {
+		log.Fatal(err)
+	}
+	if commandList, err = getCommandList(cmd); err != nil {
+		log.Fatal(err)
+	}
+	if targets, err = getFilterList(cmd); err != nil {
+		log.Fatal(err)
+	}
+
+	if err := validateRunFlags(cmd, instanceList, commandList, targets); err != nil {
+		log.Fatal(err)
+	}
+
+	if profileList, err = getProfileList(cmd); err != nil {
+		log.Fatal(err)
+	}
+	if regionList, err = getRegionList(cmd); err != nil {
+		log.Fatal(err)
+	}
 
 	// Get the number of cores available for parallelization
 	runtime.GOMAXPROCS(runtime.NumCPU())
-
-	// If the --commands and --file options are specified, we append the script contents to the specified commands
-	if inputFile := cmdutil.GetFlagString(cmd, "file"); inputFile != "" {
-		if err := util.ReadScriptFile(inputFile, &commandList); err != nil {
-			log.Fatal(err)
-		}
-	}
-
-	switch { // These cases are all fatal for our invocations or result in undefined behavior
-	case len(instanceList) > 0 && len(filterList) > 0:
-		cmdutil.UsageError(cmd, "The --filter and --instance flags cannot be used simultaneously.")
-	case len(instanceList) > 50:
-		cmdutil.UsageError(cmd, "The --instance flag can only be used to specify a maximum of 50 instances.")
-	case len(commandList) == 0:
-		cmdutil.UsageError(cmd, "Please specify a command to be run on your instances.")
-	case len(profileList) > 0 && allProfilesFlag:
-		cmdutil.UsageError(cmd, "The --profile and --all-profiles flags cannot be used simultaneously.")
-	}
-
-	targets := []*ssm.Target{}
-
-args:
-	for {
-		switch {
-		case allProfilesFlag: // If --all-profiles is set, we call getAWSProfiles() and iterate through the user's ~/.aws/config
-			if profileList, err := awsx.GetAWSProfiles(); profileList == nil || err != nil {
-				log.Fatalf("Could not load profiles.\n%v", err)
-			}
-		case len(filterList) > 0 && len(targets) == 0: // Convert the filter slice to a map
-			targets = util.SliceToTargets(filterList)
-		case len(profileList) == 0: // If no profile is specified, look it up or fall back to "default"
-			if env, exists := os.LookupEnv("AWS_PROFILE"); !exists {
-				profileList = []string{env}
-			} else {
-				profileList = []string{"default"}
-			}
-		case len(regionList) == 0: // If no region is specified, attempt to look it up
-			if env, exists := os.LookupEnv("AWS_REGION"); !exists {
-				regionList = []string{env}
-			}
-		default:
-			break args
-		}
-	}
 
 	log.Info("Command(s) to be executed:\n", strings.Join(commandList, "\n"))
 
@@ -112,6 +87,7 @@ args:
 
 	// Set up our AWS session for each permutation of profile + region
 	sessionPool := session.NewPoolSafe(profileList, regionList, log)
+
 	wg, output := sync.WaitGroup{}, invocation.ResultSafe{}
 
 	for _, sess := range sessionPool.Sessions {
