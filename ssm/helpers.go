@@ -1,9 +1,13 @@
 package ssm
 
 import (
+	"fmt"
+	"sync"
+	"time"
+
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/hashicorp/go-multierror"
+	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/disneystreaming/ssm-helpers/aws/session"
@@ -53,64 +57,88 @@ func addInstanceInfo(instanceID *string, tags []ec2helpers.InstanceTags, instanc
 	}
 }
 
+func checkInvocationStatus(client ssmiface.SSMAPI, commandID *string) (done bool, err error) {
+	var invocation *ssm.ListCommandsOutput
+	if invocation, err = client.ListCommands(&ssm.ListCommandsInput{
+		CommandId: commandID,
+	}); err != nil {
+		return true, fmt.Errorf("Encountered an error when trying to call the ListCommands API with CommandId: %v\n%v", *commandID, err)
+	}
+
+	if len(invocation.Commands) != 1 {
+		return true, fmt.Errorf("Incorrect number of invocations returned for given command ID; expected 1, got %d", len(invocation.Commands))
+	}
+
+	switch *invocation.Commands[0].Status {
+	case "Pending", "InProgress":
+		return false, nil
+	default:
+		return true, nil
+	}
+}
+
 // RunInvocations invokes an SSM document with given parameters on the provided slice of instances
-func RunInvocations(sp *session.Pool, sess *ssm.SSM, instances []*ssm.InstanceInformation, params *invocation.RunShellScriptParameters, dryRun bool, resultsPool *invocation.ResultSafe) (err error) {
-	var commandOutput invocation.CommandOutputSafe
-	var invError error
+func RunInvocations(sess *session.Pool, client ssmiface.SSMAPI, wg *sync.WaitGroup, input *ssm.SendCommandInput, results *invocation.ResultSafe) {
+	defer wg.Done()
 
-	scoChan := make(chan *ssm.SendCommandOutput)
-	errChan := make(chan error)
+	oc := make(chan *ssm.GetCommandInvocationOutput)
+	ec := make(chan error)
+	var scOutput *ssm.SendCommandOutput
+	var err error
 
-	/*
-		In a standard deployment, SSM allows us run commands on a maximum of
-		up to 50 instances simultaneously.
+	// Send our command input to SSM
+	if scOutput, err = client.SendCommand(input); err != nil {
+		sess.Logger.Errorf("Error when calling the SendCommand API for account %v in %v\n%v", sess.ProfileName, *sess.Session.Config.Region, err)
+		return
+	}
 
-		(Technically, it does an exponential deployment, where it deploys to n^2
-		instances at a time (up to 50), where n is the last number of instances
-		on which the command completed.)
+	commandID := scOutput.Command.CommandId
+	sess.Logger.Infof("Started invocation %v for %v in %v", *commandID, sess.ProfileName, *sess.Session.Config.Region)
 
-		To speed up execution, we can split the instances into arbitrarily-sized
-		batches and run the command on every batch concurrently. In the current
-		implementation, we are effectively using a batch size of 1 for maximum
-		concurrency.
-	*/
-
-	for _, instance := range instances {
-		go invocation.RunSSMCommand(sess, params, dryRun, scoChan, errChan, *instance.InstanceId)
-		output, err := <-scoChan, <-errChan
-
-		if err != nil {
-			invError = multierror.Append(invError, err)
-		}
-
-		if output != nil {
-			addInvocationInfo(output, &commandOutput)
+	// Watch status of invocation to see when it's done and we can get the output
+	for done := false; !done; time.Sleep(2 * time.Second) {
+		if done, err = checkInvocationStatus(client, commandID); err != nil {
+			sess.Logger.Error(err)
+			return
 		}
 	}
 
-	// Fetch the results of our invocation for all provided instances
-	invocationStatus, err := invocation.GetCommandInvocationResult(sess, commandOutput.Output...)
-	if err != nil {
-		// If we somehow throw an error here, something has gone screwy with our invocation or the target instance
-		// See the docs on ssm.GetCommandInvocation() for error details
-		invError = multierror.Append(invError, err)
+	// Set up our LCI input object
+	lciInput := &ssm.ListCommandInvocationsInput{
+		CommandId: commandID,
 	}
 
-	// Iterate through all retrieved invocation results to add some extra context
-	addInvocationResults(invocationStatus, resultsPool, sp)
-	return invError
-}
+	// Iterate through the details of the invocations returned
+	if err = client.ListCommandInvocationsPages(
+		lciInput,
+		func(page *ssm.ListCommandInvocationsOutput, lastPage bool) bool {
+			for _, entry := range page.CommandInvocations {
+				// Fetch the results of our invocation for all provided instances
+				go invocation.GetResult(client, commandID, entry.InstanceId, oc, ec)
 
-func addInvocationInfo(info *ssm.SendCommandOutput, infoPool *invocation.CommandOutputSafe) {
-	if info != nil {
-		infoPool.Lock()
-		infoPool.Output = append(infoPool.Output, info)
-		infoPool.Unlock()
+				// Wait for results to return until the combined total of results and errors
+				select {
+				case result := <-oc:
+					addInvocationResults(results, sess, result)
+				case err := <-ec:
+					sess.Logger.Error(err)
+				}
+			}
+
+			// Last page, break out
+			if page.NextToken == nil {
+				return false
+			}
+
+			lciInput.SetNextToken(*page.NextToken)
+			return true
+		}); err != nil {
+		sess.Logger.Error(fmt.Errorf("Error when calling ListCommandInvocations API\n%v", err))
 	}
 
 }
 
-func addInvocationResults(info []*ssm.GetCommandInvocationOutput, results *invocation.ResultSafe, session *session.Pool) {
+func addInvocationResults(results *invocation.ResultSafe, session *session.Pool, info ...*ssm.GetCommandInvocationOutput) {
 	for _, v := range info {
 		var result = &invocation.Result{
 			InvocationResult: v,

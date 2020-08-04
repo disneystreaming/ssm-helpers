@@ -17,7 +17,6 @@ import (
 
 	"github.com/disneystreaming/gomux"
 
-	awsx "github.com/disneystreaming/ssm-helpers/aws"
 	"github.com/disneystreaming/ssm-helpers/aws/session"
 	"github.com/disneystreaming/ssm-helpers/cmd/cmdutil"
 	ssmx "github.com/disneystreaming/ssm-helpers/ssm"
@@ -42,47 +41,31 @@ func newCommandSSMSession() *cobra.Command {
 }
 
 func startSessionCommand(cmd *cobra.Command, args []string) {
-	cmdutil.ValidateArgs(cmd, args)
+	var err error
+	var instanceList, profileList, regionList, filterList, tagList []string
 
-	dryRunFlag := cmdutil.GetFlagBool(cmd.Parent(), "dry-run")
-	profileList := cmdutil.GetFlagStringSlice(cmd.Parent(), "profile")
-	regionList := cmdutil.GetFlagStringSlice(cmd.Parent(), "region")
-	filterList := cmdutil.GetFlagStringSlice(cmd.Parent(), "filter")
-	tagList := cmdutil.GetFlagStringSlice(cmd, "tag")
-	limitFlag := cmdutil.GetFlagInt(cmd, "limit")
-	instanceList := cmdutil.GetFlagStringSlice(cmd, "instance")
-	sessionName := cmdutil.GetFlagString(cmd, "session-name")
+	// Get all of our CLI flag values
+	if err = cmdutil.ValidateArgs(cmd, args); err != nil {
+		log.Fatal(err)
+	}
+
+	if profileList, err = getProfileList(cmd); err != nil {
+		log.Fatal(err)
+	}
+	if regionList, err = getRegionList(cmd); err != nil {
+		log.Fatal(err)
+	}
+	dryRunFlag, err := cmdutil.GetFlagBool(cmd.Parent(), "dry-run")
+	filterList, err = cmdutil.GetFlagStringSlice(cmd.Parent(), "filter")
+	tagList, err = cmdutil.GetFlagStringSlice(cmd, "tag")
+	limitFlag, err := cmdutil.GetFlagInt(cmd, "limit")
+	sessionName, err := cmdutil.GetFlagString(cmd, "session-name")
 
 	// Get the number of cores available for parallelization
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	if len(profileList) == 0 {
-		env, exists := os.LookupEnv("AWS_PROFILE")
-		if exists {
-			profileList = []string{env}
-		} else {
-			profileList = []string{"default"}
-		}
-	}
-
-	if len(regionList) == 0 {
-		env, exists := os.LookupEnv("AWS_REGION")
-		if exists == false {
-			regionList = []string{env}
-		}
-	}
-
-	// If --all-profiles is set, we call getAWSProfiles() and iterate through the user's ~/.aws/config
-	if allProfilesFlag := cmdutil.GetFlagBool(cmd, "all-profiles"); allProfilesFlag {
-		profileList, err := awsx.GetAWSProfiles()
-		if profileList == nil || err != nil {
-			log.Error("Could not load profiles.", err)
-			os.Exit(1)
-		}
-	}
-
 	// Set up our AWS session for each permutation of profile + region
-	sessionPool := session.NewPoolSafe(profileList, regionList)
+	sessionPool := session.NewPoolSafe(profileList, regionList, log)
 
 	// Set up our filters
 	var filterMaps []map[string]string
@@ -136,10 +119,44 @@ func startSessionCommand(cmd *cobra.Command, args []string) {
 	}
 
 	// If -i flag is set, don't prompt for instance selection
-	if !dryRunFlag {
-		// Single instance specified or found, starting session in current terminal (non-multiplexed)
-		if len(instanceList) == 1 {
-			for _, v := range instancePool.AllInstances {
+	if dryRunFlag {
+		return
+	}
+	// Single instance specified or found, starting session in current terminal (non-multiplexed)
+	if len(instanceList) == 1 {
+		for _, v := range instancePool.AllInstances {
+			if err := startSSMSession(v.Profile, v.Region, v.InstanceID); err != nil {
+				log.Errorf("Failed to start ssm-session for instance %s\n%s", v.InstanceID, err)
+			}
+		}
+		return
+	}
+
+	// Multiple instances specified or found, check to see if we're in a tmux session to avoid nesting
+	if len(instanceList) > 1 && len(instancePool.AllInstances) > 1 {
+		var instances []instance.InstanceInfo
+		for _, v := range instancePool.AllInstances {
+			instances = append(instances, v)
+		}
+
+		if err := configTmuxSession(sessionName, instances); err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		// If -i was not specified, go to a selection prompt before starting sessions
+		selectedInstances, err := startSelectionPrompt(&instancePool, totalInstances, tagList)
+		if err != nil {
+			if err == terminal.InterruptErr {
+				log.Info("Instance selection interrupted.")
+				os.Exit(0)
+			}
+			log.Errorf("Error during instance selection\n%s", err)
+			os.Exit(1)
+		}
+
+		// If only one instance was selected, don't bother with a tmux session
+		if len(selectedInstances) == 1 {
+			for _, v := range selectedInstances {
 				if err := startSSMSession(v.Profile, v.Region, v.InstanceID); err != nil {
 					log.Errorf("Failed to start ssm-session for instance %s\n%s", v.InstanceID, err)
 				}
@@ -147,53 +164,20 @@ func startSessionCommand(cmd *cobra.Command, args []string) {
 			return
 		}
 
-		// Multiple instances specified or found, check to see if we're in a tmux session to avoid nesting
-		if len(instanceList) > 1 && len(instancePool.AllInstances) > 1 {
-			var instances []instance.InstanceInfo
-			for _, v := range instancePool.AllInstances {
-				instances = append(instances, v)
-			}
-
-			if err := configTmuxSession(sessionName, instances); err != nil {
-				log.Fatal(err)
-			}
-		} else {
-			// If -i was not specified, go to a selection prompt before starting sessions
-			selectedInstances, err := startSelectionPrompt(&instancePool, totalInstances, tagList)
-			if err != nil {
-				if err == terminal.InterruptErr {
-					log.Info("Instance selection interrupted.")
-					os.Exit(0)
-				}
-				log.Errorf("Error during instance selection\n%s", err)
-				os.Exit(1)
-			}
-
-			// If only one instance was selected, don't bother with a tmux session
-			if len(selectedInstances) == 1 {
-				for _, v := range selectedInstances {
-					if err := startSSMSession(v.Profile, v.Region, v.InstanceID); err != nil {
-						log.Errorf("Failed to start ssm-session for instance %s\n%s", v.InstanceID, err)
-					}
-				}
-				return
-			}
-
-			if err = configTmuxSession(sessionName, selectedInstances); err != nil {
-				log.Fatal(err)
-			}
+		if err = configTmuxSession(sessionName, selectedInstances); err != nil {
+			log.Fatal(err)
 		}
+	}
 
-		// Make sure we aren't going to nest tmux sessions
-		currentTmuxSocket := os.Getenv("TMUX")
-		if len(currentTmuxSocket) == 0 {
-			if err := attachTmuxSession(sessionName); err != nil {
-				log.Errorf("Could not attach to tmux session '%s'\n%s", sessionName, err)
-			}
-		} else {
-			log.Info("To force nested Tmux sessions unset $TMUX")
-			log.Infof("Attach to the session with `tmux attach -t %s`", sessionName)
+	// Make sure we aren't going to nest tmux sessions
+	currentTmuxSocket := os.Getenv("TMUX")
+	if len(currentTmuxSocket) == 0 {
+		if err := attachTmuxSession(sessionName); err != nil {
+			log.Errorf("Could not attach to tmux session '%s'\n%s", sessionName, err)
 		}
+	} else {
+		log.Info("To force nested Tmux sessions unset $TMUX")
+		log.Infof("Attach to the session with `tmux attach -t %s`", sessionName)
 	}
 }
 
