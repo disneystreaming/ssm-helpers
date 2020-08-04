@@ -19,13 +19,13 @@ func RunSSMCommand(session ssmiface.SSMAPI, input *ssm.SendCommandInput, dryRunF
 	return
 }
 
-func GetTargets(ctx ssmiface.SSMAPI, commandID *string) (targets []*string, err error) {
+func GetTargets(client ssmiface.SSMAPI, commandID *string) (targets []*string, err error) {
 	var out *ssm.ListCommandInvocationsOutput
 
 	// Try a few times to get the invocation data, because it takes a little bit to have any information
 	for i := 0; i < 3; i++ {
 		time.Sleep(1 * time.Second)
-		if out, err = ctx.ListCommandInvocations(&ssm.ListCommandInvocationsInput{
+		if out, err = client.ListCommandInvocations(&ssm.ListCommandInvocationsInput{
 			CommandId: commandID,
 		}); err != nil {
 			return nil, err
@@ -47,8 +47,8 @@ func GetTargets(ctx ssmiface.SSMAPI, commandID *string) (targets []*string, err 
 	return targets, nil
 }
 
-func GetResult(ctx ssmiface.SSMAPI, commandID *string, instanceID *string, gci chan *ssm.GetCommandInvocationOutput, ec chan error) {
-	status, err := ctx.GetCommandInvocation(&ssm.GetCommandInvocationInput{
+func GetResult(client ssmiface.SSMAPI, commandID *string, instanceID *string, gci chan *ssm.GetCommandInvocationOutput, ec chan error) {
+	status, err := client.GetCommandInvocation(&ssm.GetCommandInvocationInput{
 		CommandId:  commandID,
 		InstanceId: instanceID,
 	})

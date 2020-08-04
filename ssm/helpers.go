@@ -57,9 +57,9 @@ func addInstanceInfo(instanceID *string, tags []ec2helpers.InstanceTags, instanc
 	}
 }
 
-func checkInvocationStatus(ctx ssmiface.SSMAPI, commandID *string) (done bool, err error) {
+func checkInvocationStatus(client ssmiface.SSMAPI, commandID *string) (done bool, err error) {
 	var invocation *ssm.ListCommandsOutput
-	if invocation, err = ctx.ListCommands(&ssm.ListCommandsInput{
+	if invocation, err = client.ListCommands(&ssm.ListCommandsInput{
 		CommandId: commandID,
 	}); err != nil {
 		return true, fmt.Errorf("Encountered an error when trying to call the ListCommands API with CommandId: %v\n%v", *commandID, err)
@@ -78,7 +78,7 @@ func checkInvocationStatus(ctx ssmiface.SSMAPI, commandID *string) (done bool, e
 }
 
 // RunInvocations invokes an SSM document with given parameters on the provided slice of instances
-func RunInvocations(sess *session.Pool, ctx ssmiface.SSMAPI, wg *sync.WaitGroup, input *ssm.SendCommandInput, results *invocation.ResultSafe) {
+func RunInvocations(sess *session.Pool, client ssmiface.SSMAPI, wg *sync.WaitGroup, input *ssm.SendCommandInput, results *invocation.ResultSafe) {
 	defer wg.Done()
 
 	oc := make(chan *ssm.GetCommandInvocationOutput)
@@ -87,16 +87,17 @@ func RunInvocations(sess *session.Pool, ctx ssmiface.SSMAPI, wg *sync.WaitGroup,
 	var err error
 
 	// Send our command input to SSM
-	if scOutput, err = ctx.SendCommand(input); err != nil {
+	if scOutput, err = client.SendCommand(input); err != nil {
 		sess.Logger.Errorf("Error when calling the SendCommand API for account %v in %v\n%v", sess.ProfileName, *sess.Session.Config.Region, err)
 		return
 	}
 
 	commandID := scOutput.Command.CommandId
+	sess.Logger.Infof("Started invocation %v for %v in %v", *commandID, sess.ProfileName, *sess.Session.Config.Region)
 
 	// Watch status of invocation to see when it's done and we can get the output
 	for done := false; !done; time.Sleep(2 * time.Second) {
-		if done, err = checkInvocationStatus(ctx, commandID); err != nil {
+		if done, err = checkInvocationStatus(client, commandID); err != nil {
 			sess.Logger.Error(err)
 			return
 		}
@@ -108,12 +109,12 @@ func RunInvocations(sess *session.Pool, ctx ssmiface.SSMAPI, wg *sync.WaitGroup,
 	}
 
 	// Iterate through the details of the invocations returned
-	if err = ctx.ListCommandInvocationsPages(
+	if err = client.ListCommandInvocationsPages(
 		lciInput,
 		func(page *ssm.ListCommandInvocationsOutput, lastPage bool) bool {
 			for _, entry := range page.CommandInvocations {
 				// Fetch the results of our invocation for all provided instances
-				go invocation.GetResult(ctx, commandID, entry.InstanceId, oc, ec)
+				go invocation.GetResult(client, commandID, entry.InstanceId, oc, ec)
 
 				// Wait for results to return until the combined total of results and errors
 				select {
