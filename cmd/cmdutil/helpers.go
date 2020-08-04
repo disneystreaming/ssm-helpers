@@ -37,7 +37,7 @@ func AddDryRunFlag(cmd *cobra.Command) {
 
 // AddVerboseFlag adds --verbose to command
 func AddVerboseFlag(cmd *cobra.Command) {
-	cmd.Flags().IntP("verbose", "v", 2, "Sets verbosity of output:\n0 = quiet, 1 = terse, 2 = standard, 3 = debug")
+	cmd.PersistentFlags().IntP("verbose", "v", 2, "Sets verbosity of output:\n0 = quiet, 1 = terse, 2 = standard, 3 = debug")
 }
 
 // AddLimitFlag adds --limit to command

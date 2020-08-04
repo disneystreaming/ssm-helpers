@@ -18,9 +18,10 @@ func NewPoolSafe(profiles []string, regions []string, logger *log.Logger) (allSe
 		Sessions: make(map[string]*Pool),
 	}
 
-	if len(regions) == 0 {
+	if len(regions) != 0 {
 		for _, p := range profiles {
 			for _, r := range regions {
+				wg.Add(1)
 				// Wait until we have the session for each permutation of profiles and regions
 				go func(p string, r string) {
 					defer wg.Done()
@@ -30,7 +31,7 @@ func NewPoolSafe(profiles []string, regions []string, logger *log.Logger) (allSe
 						logger.Fatalf("Error when trying to create session:\n%v", err)
 					}
 
-					if err := validateSessionCreds(s); s != nil {
+					if err = validateSessionCreds(s); err != nil {
 						logger.Fatal(err)
 					}
 
@@ -45,6 +46,7 @@ func NewPoolSafe(profiles []string, regions []string, logger *log.Logger) (allSe
 		}
 	} else {
 		for _, p := range profiles {
+			wg.Add(1)
 			// Wait until we have the session for each profile
 			go func(p string) {
 				defer wg.Done()
@@ -54,7 +56,7 @@ func NewPoolSafe(profiles []string, regions []string, logger *log.Logger) (allSe
 					logger.Fatalf("Error when trying to create session:\n%v", err)
 				}
 
-				if err := validateSessionCreds(s); s != nil {
+				if err = validateSessionCreds(s); err != nil {
 					logger.Fatal(err)
 				}
 
