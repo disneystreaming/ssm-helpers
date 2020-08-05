@@ -2,7 +2,6 @@ package mocks
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -56,32 +55,33 @@ func (m *MockSSMClient) TerminateSession(input *ssm.TerminateSessionInput) (outp
 }
 
 func (m *MockSSMClient) GetCommandInvocation(input *ssm.GetCommandInvocationInput) (output *ssm.GetCommandInvocationOutput, err error) {
+	var status string
 
-	if os.Getenv(fmt.Sprintf("%s-trycount", *input.InstanceId)) == "0" {
-		// Test waiting in cases where the invocation hasn't started yet
-		err = awserr.New("InvocationDoesNotExist", "The command ID and instance ID you specified did not match any invocations.\nVerify the command ID and the instance ID and try again.", err)
-		os.Setenv(fmt.Sprintf("%s-trycount", *input.InstanceId), "1")
-		return nil, err
-	} else if os.Getenv(fmt.Sprintf("%s-trycount", *input.InstanceId)) == "1" {
-		// Test waiting for the invocation to complete
+	switch *input.CommandId {
+	case "success-id":
+		status = "Success"
+	case "failed-id", "mixed-id":
+		status = "Failed"
+	case "pending-id":
+		status = "Pending"
+	case "bad-id":
+		return nil, awserr.New("InvalidCommandId", "InvalidCommandId", nil)
+		}
+
 		output = &ssm.GetCommandInvocationOutput{
 			InstanceId:    input.InstanceId,
 			CommandId:     input.CommandId,
-			StatusDetails: aws.String("InProgress"),
+		StatusDetails: aws.String(status),
 		}
-		os.Setenv(fmt.Sprintf("%s-trycount", *input.InstanceId), "2")
-		return output, nil
-	} else {
-		output = &ssm.GetCommandInvocationOutput{
-			InstanceId:    input.InstanceId,
-			CommandId:     input.CommandId,
-			StatusDetails: aws.String("Success"),
-		}
+
 		return output, nil
 	}
-}
 
 func (m *MockSSMClient) SendCommand(input *ssm.SendCommandInput) (output *ssm.SendCommandOutput, err error) {
+	if len(input.InstanceIds) > 0 && len(input.Targets) > 0 {
+		return nil, fmt.Errorf("Cannot specify instance IDs and SSM targets in same SendCommandInput")
+	}
+
 	// Mock our response from the SSM API
 	output = &ssm.SendCommandOutput{
 		Command: &ssm.Command{
@@ -89,6 +89,7 @@ func (m *MockSSMClient) SendCommand(input *ssm.SendCommandInput) (output *ssm.Se
 			DocumentName: input.DocumentName,
 			InstanceIds:  input.InstanceIds,
 			Parameters:   input.Parameters,
+			Targets:      input.Targets,
 		},
 	}
 	return output, nil
