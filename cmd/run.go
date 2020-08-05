@@ -35,6 +35,7 @@ func newCommandSSMRun() *cobra.Command {
 func runCommand(cmd *cobra.Command, args []string) {
 	var err error
 	var instanceList, commandList, profileList, regionList []string
+	var maxConcurrency, maxErrors string
 	var targets []*ssm.Target
 
 	// Get all of our CLI flag values
@@ -63,6 +64,13 @@ func runCommand(cmd *cobra.Command, args []string) {
 		log.Fatal(err)
 	}
 
+	if maxConcurrency, err = getMaxConcurrency(cmd); err != nil {
+		log.Fatal(err)
+	}
+	if maxErrors, err = getMaxErrors(cmd); err != nil {
+		log.Fatal(err)
+	}
+
 	// Get the number of cores available for parallelization
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
@@ -83,6 +91,8 @@ func runCommand(cmd *cobra.Command, args []string) {
 			"commands":         aws.StringSlice(commandList),
 			"executionTimeout": aws.StringSlice([]string{"600"}),
 		},
+		MaxConcurrency: aws.String(maxConcurrency),
+		MaxErrors:      aws.String(maxErrors),
 	}
 
 	// Set up our AWS session for each permutation of profile + region
