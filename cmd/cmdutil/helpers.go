@@ -224,3 +224,11 @@ func squashParamsSlice(slice []string, cmd *cobra.Command) ([]string, error) {
 
 	return sqS, nil
 }
+
+func readAsSSV(val string) []string {
+	if val == "" {
+		return []string{}
+	}
+
+	return strings.Split(val, ";")
+}
