@@ -2,7 +2,7 @@ package session
 
 import (
 	"fmt"
-	"sync"
+	"os"
 
 	"github.com/aws/aws-sdk-go/aws/session"
 	log "github.com/sirupsen/logrus"
@@ -12,87 +12,56 @@ import (
 
 // NewPoolSafe is used to create a pool of AWS sessions with different profile/region permutations
 func NewPoolSafe(profiles []string, regions []string, logger *log.Logger) (allSessions *PoolSafe) {
+	sessions := map[string]*Pool{}
 
-	wg := sync.WaitGroup{}
-	sp := &PoolSafe{
-		Sessions: make(map[string]*Pool),
-	}
+	for _, region := range regions {
+		if stsCredentialsSet() {
+			pool := newPool("", region, logger)
+			poolName := fmt.Sprintf("default-%s", region)
+			sessions[poolName] = pool
 
-	if len(regions) != 0 {
-		for _, p := range profiles {
-			for _, r := range regions {
-				wg.Add(1)
-				// Wait until we have the session for each permutation of profiles and regions
-				go func(p string, r string) {
-					defer wg.Done()
-
-					s, err := newSession(p, r)
-					if err != nil {
-						logger.Fatalf("Error when trying to create session:\n%v", err)
-					}
-
-					if err = validateSessionCreds(s); err != nil {
-						logger.Fatal(err)
-					}
-
-					session := Pool{
-						Logger:      logger,
-						ProfileName: p,
-						Session:     s,
-					}
-					sp.Sessions[fmt.Sprintf("%s-%s", p, r)] = &session
-				}(p, r)
-			}
+			continue
 		}
-	} else {
-		for _, p := range profiles {
-			wg.Add(1)
-			// Wait until we have the session for each profile
-			go func(p string) {
-				defer wg.Done()
 
-				s, err := newSession(p, "")
-				if err != nil {
-					logger.Fatalf("Error when trying to create session:\n%v", err)
-				}
-
-				if err = validateSessionCreds(s); err != nil {
-					logger.Fatal(err)
-				}
-
-				session := Pool{
-					Logger:      logger,
-					ProfileName: p,
-					Session:     s,
-				}
-				sp.Sessions[fmt.Sprintf("%s", p)] = &session
-			}(p)
+		for _, profile := range profiles {
+			pool := newPool(profile, region, logger)
+			poolName := fmt.Sprintf("%s-%s", profile, region)
+			sessions[poolName] = pool
 		}
 	}
-	// Wait until all sessions have been initialized
-	wg.Wait()
 
-	return sp
+	return &PoolSafe{Sessions: sessions}
 }
 
-func validateSessionCreds(session *session.Session) (err error) {
-	creds := session.Config.Credentials
-	if _, err := creds.Get(); err != nil {
-		return fmt.Errorf("Error when validating credentials:\n%v", err)
+func stsCredentialsSet() bool {
+	sessionToken := os.Getenv("AWS_SESSION_TOKEN")
+	accessKeyID := os.Getenv("AWS_ACCESS_KEY_ID")
+	secretAccessKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
+
+	if sessionToken == "" || accessKeyID == "" || secretAccessKey == "" {
+		return false
 	}
 
-	return nil
+	return true
 }
 
-// newSession uses a given profile and region to call NewSessionWithOptions() to initialize an instance of the AWS client with the given settings.
-// If the region is nil, it defaults to the default region in the ~/.aws/config file or the AWS_REGION environment variable.
-func newSession(profile string, region string) (newSession *session.Session, err error) {
-	// Create AWS session from shared config
-	// This will import the AWS_PROFILE envvar from your console, if set
-	return session.NewSessionWithOptions(
-		session.Options{
-			Config:            *config.NewDefaultConfig(region),
-			Profile:           profile,
-			SharedConfigState: session.SharedConfigEnable,
-		})
+func newPool(profile string, region string, logger *log.Logger) *Pool {
+	options := session.Options{
+		Config:            *config.NewDefaultConfig(region),
+		Profile:           profile,
+		SharedConfigState: session.SharedConfigEnable,
+	}
+
+	session, err := session.NewSessionWithOptions(options)
+	if err != nil {
+		logger.Fatalf("Error when trying to create session:\n%v", err)
+	}
+
+	pool := &Pool{
+		Logger:      logger,
+		ProfileName: profile,
+		Session:     session,
+	}
+
+	return pool
 }

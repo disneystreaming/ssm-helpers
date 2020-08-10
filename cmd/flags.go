@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -54,18 +55,22 @@ func getCommandList(cmd *cobra.Command) (commandList []string, err error) {
 	return commandList, nil
 }
 
-func getRegionList(cmd *cobra.Command) (regionList []string, err error) {
-	if regionList, err = cmdutil.GetFlagStringSlice(cmd, "region"); err != nil {
-		return nil, err
+func getRegionList(cmd *cobra.Command) ([]string, error) {
+	regions, err := cmdutil.GetFlagStringSlice(cmd, "region")
+	if err != nil {
+		return []string{}, err
 	}
 
-	if len(regionList) == 0 { // If no region is specified, attempt to look it up
-		if env, exists := os.LookupEnv("AWS_REGION"); exists {
-			return []string{env}, nil
-		}
+	if len(regions) != 0 {
+		return regions, nil
 	}
 
-	return regionList, nil
+	defaultRegion, exists := os.LookupEnv("AWS_REGION")
+	if exists {
+		return []string{defaultRegion}, nil
+	}
+
+	return []string{}, errors.New("no region specified")
 }
 
 func getTargetList(cmd *cobra.Command) (targets []*ssm.Target, err error) {
