@@ -183,15 +183,15 @@ func Test_getRegionList(t *testing.T) {
 	})
 }
 
-func Test_getFilterList(t *testing.T) {
+func Test_getTargetList(t *testing.T) {
 	assert := assert.New(t)
 	cmd := NewTestCmd()
 
 	t.Run("filter flag undefined", func(t *testing.T) {
 		cmd.Execute()
 
-		filterList, err := getFilterList(cmd)
-		assert.Len(filterList, 0)
+		targetList, err := getTargetList(cmd)
+		assert.Len(targetList, 0)
 		assert.Error(err)
 
 		cmd.ResetFlags()
@@ -202,8 +202,8 @@ func Test_getFilterList(t *testing.T) {
 		cmd.SetArgs([]string{"-f", "foo=bar"})
 		cmd.Execute()
 
-		filterList, err := getFilterList(cmd)
-		assert.Len(filterList, 1)
+		targetList, err := getTargetList(cmd)
+		assert.Len(targetList, 1)
 		assert.NoError(err)
 
 		cmd.ResetFlags()
@@ -214,8 +214,8 @@ func Test_getFilterList(t *testing.T) {
 		cmd.SetArgs([]string{"-f", "foo=bar,baz=bat"})
 		cmd.Execute()
 
-		filterList, err := getFilterList(cmd)
-		assert.Len(filterList, 2)
+		targetList, err := getTargetList(cmd)
+		assert.Len(targetList, 2)
 		assert.NoError(err)
 
 		cmd.ResetFlags()

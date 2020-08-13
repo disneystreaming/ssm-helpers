@@ -49,7 +49,7 @@ func runCommand(cmd *cobra.Command, args []string) {
 	if commandList, err = getCommandList(cmd); err != nil {
 		log.Fatal(err)
 	}
-	if targets, err = getFilterList(cmd); err != nil {
+	if targets, err = getTargetList(cmd); err != nil {
 		log.Fatal(err)
 	}
 
