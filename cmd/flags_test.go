@@ -346,6 +346,30 @@ func Test_validateRunFlags(t *testing.T) {
 	})
 }
 
+func Test_validateSessionFlags(t *testing.T) {
+	assert := assert.New(t)
+
+	cmd := NewTestCmd()
+	cmdutil.AddFilterFlag(cmd)
+	cmdutil.AddInstanceFlag(cmd)
+	cmd.Execute()
+
+	instanceList := make([]string, 51)
+
+	t.Run("try to use --filter and --instance flags", func(t *testing.T) {
+		filterList := map[string]string{
+			"foo": "bar",
+		}
+		err := validateSessionFlags(cmd, instanceList, filterList)
+		assert.Error(err)
+	})
+
+	t.Run("valid flag combination", func(t *testing.T) {
+		err := validateSessionFlags(cmd, instanceList, nil)
+		assert.NoError(err)
+	})
+}
+
 func Test_setLogLevel(t *testing.T) {
 	assert := assert.New(t)
 
