@@ -49,7 +49,7 @@ func runCommand(cmd *cobra.Command, args []string) {
 	if commandList, err = getCommandList(cmd); err != nil {
 		log.Fatal(err)
 	}
-	if targets, err = getFilterList(cmd); err != nil {
+	if targets, err = getTargetList(cmd); err != nil {
 		log.Fatal(err)
 	}
 
@@ -95,11 +95,10 @@ func runCommand(cmd *cobra.Command, args []string) {
 		MaxErrors:      aws.String(maxErrors),
 	}
 
-	// Set up our AWS session for each permutation of profile + region
-	sessionPool := session.NewPoolSafe(profileList, regionList, log)
-
 	wg, output := sync.WaitGroup{}, invocation.ResultSafe{}
 
+	// Set up our AWS session for each permutation of profile + region and iterate over them
+	sessionPool := session.NewPoolSafe(profileList, regionList, log)
 	for _, sess := range sessionPool.Sessions {
 		wg.Add(1)
 		ssmClient := ssm.New(sess.Session)

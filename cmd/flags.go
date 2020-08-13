@@ -31,6 +31,12 @@ func addRunFlags(cmd *cobra.Command) {
 	cmdutil.AddMaxErrorsFlag(cmd, "0", "Max errors allowed before running on additional targets. Both numbers, such as 10, and percentages, such as 10%, are allowed")
 }
 
+func addSessionFlags(cmd *cobra.Command) {
+	cmdutil.AddTagFlag(cmd)
+	cmdutil.AddSessionNameFlag(cmd, "ssm-session")
+	cmdutil.AddLimitFlag(cmd, 10, "Set a limit for the number of instance results returned per profile/region combination.")
+}
+
 func getCommandList(cmd *cobra.Command) (commandList []string, err error) {
 	if commandList, err = cmdutil.GetCommandFlagStringSlice(cmd); err != nil {
 		return nil, err
@@ -62,7 +68,7 @@ func getRegionList(cmd *cobra.Command) (regionList []string, err error) {
 	return regionList, nil
 }
 
-func getFilterList(cmd *cobra.Command) (targets []*ssm.Target, err error) {
+func getTargetList(cmd *cobra.Command) (targets []*ssm.Target, err error) {
 	var filterList []string
 	if filterList, err = cmdutil.GetFlagStringSlice(cmd, "filter"); err != nil {
 		return nil, err
@@ -128,6 +134,14 @@ Pattern: %q`, 1, 7, "^([1-9][0-9]*|[0]|[1-9][0-9]%|[0-9]%|100%)$")
 	}
 
 	return maxErrors, nil
+}
+
+func validateSessionFlags(cmd *cobra.Command, instanceList []string, filterList map[string]string) error {
+	if len(instanceList) > 0 && len(filterList) > 0 {
+		return cmdutil.UsageError(cmd, "The --filter and --instance flags cannot be used simultaneously.")
+	}
+
+	return nil
 }
 
 // validateRunFlags validates the usage of certain flags required by the run subcommand
