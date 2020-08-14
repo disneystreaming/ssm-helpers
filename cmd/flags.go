@@ -65,7 +65,13 @@ func getRegionList(cmd *cobra.Command) ([]string, error) {
 		return regions, nil
 	}
 
-	defaultRegion, exists := os.LookupEnv("AWS_REGION")
+	// AWS_REGION is the deprecated env variable used to configure the region
+	region, exists := os.LookupEnv("AWS_REGION")
+	if exists {
+		return []string{region}, nil
+	}
+
+	defaultRegion, exists := os.LookupEnv("AWS_DEFAULT_REGION")
 	if exists {
 		return []string{defaultRegion}, nil
 	}
