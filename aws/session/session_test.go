@@ -18,11 +18,11 @@ func TestCreateAWSSession(t *testing.T) {
 	// Set AWS_REGION to a made-up value to ensure no overlap with real regions
 	os.Setenv("AWS_REGION", "us-test-1")
 
-	pool := newPool(os.Getenv("AWS_PROFILE"), "", logger)
-	assert.Equalf(*pool.Session.Config.Region, "us-test-1", "AWS SDK did not load correct region from envvar, expected 'us-test-1', got %s", *pool.Session.Config.Region)
+	session := newSession(os.Getenv("AWS_PROFILE"), "", logger)
+	assert.Equalf(*session.Session.Config.Region, "us-test-1", "AWS SDK did not load correct region from envvar, expected 'us-test-1', got %s", *session.Session.Config.Region)
 
-	pool = newPool(os.Getenv("AWS_PROFILE"), "us-test-2", logger)
-	assert.Equalf(*pool.Session.Config.Region, "us-test-2", "AWS SDK did not load correct region from envvar, expected 'us-test-2', got %s", *pool.Session.Config.Region)
+	session = newSession(os.Getenv("AWS_PROFILE"), "us-test-2", logger)
+	assert.Equalf(*session.Session.Config.Region, "us-test-2", "AWS SDK did not load correct region from envvar, expected 'us-test-2', got %s", *session.Session.Config.Region)
 }
 
 func TestCreateAWSSessionPool(t *testing.T) {
@@ -36,13 +36,13 @@ func TestCreateAWSSessionPool(t *testing.T) {
 		// Duplicate values will create duplicate (but not unique) sessions
 		regions := []string{"us-test-1", "us-test-2", "us-test-3"}
 		profiles := []string{"profile1", "profile2", "profile3"}
-		testSessionPool := NewPoolSafe(profiles, regions, logger)
+		testSessionPool := NewPool(profiles, regions, logger)
 
 		assert.Lenf(testSessionPool.Sessions, 9, "%d sessions in testSessionPool, should be 9 total sessions", len(testSessionPool.Sessions))
 
 		// Requires a region to provided
 		var nilRegion []string
-		testSessionPool = NewPoolSafe(profiles, nilRegion, logger)
+		testSessionPool = NewPool(profiles, nilRegion, logger)
 
 		assert.Lenf(testSessionPool.Sessions, 0, "%d sessions in testSessionPool, should be 0 total sessions", len(testSessionPool.Sessions))
 	})
@@ -52,7 +52,7 @@ func TestCreateAWSSessionPool(t *testing.T) {
 		// This should create 4 unique sessions
 		regions := []string{"us-test-1", "us-test-2", "us-test-2"}
 		profiles := []string{"profile1", "profile2", "profile2"}
-		testSessionPool := NewPoolSafe(profiles, regions, logger)
+		testSessionPool := NewPool(profiles, regions, logger)
 
 		assert.Lenf(testSessionPool.Sessions, 4, "%d sessions in testSessionPool, should be 4 unique sessions", len(testSessionPool.Sessions))
 	})

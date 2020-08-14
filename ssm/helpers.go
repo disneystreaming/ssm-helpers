@@ -78,7 +78,7 @@ func checkInvocationStatus(client ssmiface.SSMAPI, commandID *string) (done bool
 }
 
 // RunInvocations invokes an SSM document with given parameters on the provided slice of instances
-func RunInvocations(sess *session.Pool, client ssmiface.SSMAPI, wg *sync.WaitGroup, input *ssm.SendCommandInput, results *invocation.ResultSafe) {
+func RunInvocations(sess *session.Session, client ssmiface.SSMAPI, wg *sync.WaitGroup, input *ssm.SendCommandInput, results *invocation.ResultSafe) {
 	defer wg.Done()
 
 	oc := make(chan *ssm.GetCommandInvocationOutput)
@@ -138,7 +138,7 @@ func RunInvocations(sess *session.Pool, client ssmiface.SSMAPI, wg *sync.WaitGro
 
 }
 
-func addInvocationResults(results *invocation.ResultSafe, session *session.Pool, info ...*ssm.GetCommandInvocationOutput) {
+func addInvocationResults(results *invocation.ResultSafe, session *session.Session, info ...*ssm.GetCommandInvocationOutput) {
 	for _, v := range info {
 		var result = &invocation.Result{
 			InvocationResult: v,
@@ -154,9 +154,9 @@ func addInvocationResults(results *invocation.ResultSafe, session *session.Pool,
 }
 
 // CheckInstanceReadiness iterates through a list of instances and verifies whether or not it is start-session capable. If it is, it appends the instance info to an instances.InstanceInfoSafe slice.
-func CheckInstanceReadiness(sp *session.Pool, ssmSession *ssm.SSM, instanceList []*ssm.InstanceInformation, readyInstancePool *instance.InstanceInfoSafe, limit int) {
+func CheckInstanceReadiness(session *session.Session, ssmSession *ssm.SSM, instanceList []*ssm.InstanceInformation, readyInstancePool *instance.InstanceInfoSafe, limit int) {
 	var readyInstances int
-	ec2Sess := ec2.New(sp.Session)
+	ec2Sess := ec2.New(session.Session)
 
 	for _, instance := range instanceList {
 		if readyInstances < limit {
@@ -177,7 +177,7 @@ func CheckInstanceReadiness(sp *session.Pool, ssmSession *ssm.SSM, instanceList 
 			}
 
 			// Append our instance info to the master list
-			addInstanceInfo(instance.InstanceId, tags, readyInstancePool, sp.ProfileName, *sp.Session.Config.Region)
+			addInstanceInfo(instance.InstanceId, tags, readyInstancePool, session.ProfileName, *session.Session.Config.Region)
 		}
 		readyInstances++
 	}

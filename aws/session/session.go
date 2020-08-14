@@ -10,27 +10,27 @@ import (
 	"github.com/disneystreaming/ssm-helpers/aws/config"
 )
 
-// NewPoolSafe is used to create a pool of AWS sessions with different profile/region permutations
-func NewPoolSafe(profiles []string, regions []string, logger *log.Logger) (allSessions *PoolSafe) {
-	sessions := map[string]*Pool{}
+// NewPool is used to create a pool of AWS sessions with different profile/region permutations
+func NewPool(profiles []string, regions []string, logger *log.Logger) *Pool {
+	sessions := map[string]*Session{}
 
 	for _, region := range regions {
 		if stsCredentialsSet() {
-			pool := newPool("", region, logger)
-			poolName := fmt.Sprintf("default-%s", region)
-			sessions[poolName] = pool
+			session := newSession("", region, logger)
+			name := fmt.Sprintf("default-%s", region)
+			sessions[name] = session
 
 			continue
 		}
 
 		for _, profile := range profiles {
-			pool := newPool(profile, region, logger)
-			poolName := fmt.Sprintf("%s-%s", profile, region)
-			sessions[poolName] = pool
+			session := newSession(profile, region, logger)
+			name := fmt.Sprintf("%s-%s", profile, region)
+			sessions[name] = session
 		}
 	}
 
-	return &PoolSafe{Sessions: sessions}
+	return &Pool{Sessions: sessions}
 }
 
 func stsCredentialsSet() bool {
@@ -45,7 +45,7 @@ func stsCredentialsSet() bool {
 	return true
 }
 
-func newPool(profile string, region string, logger *log.Logger) *Pool {
+func newSession(profile string, region string, logger *log.Logger) *Session {
 	options := session.Options{
 		Config:            *config.NewDefaultConfig(region),
 		Profile:           profile,
@@ -57,11 +57,9 @@ func newPool(profile string, region string, logger *log.Logger) *Pool {
 		logger.Fatalf("Error when trying to create session:\n%v", err)
 	}
 
-	pool := &Pool{
+	return &Session{
 		Logger:      logger,
 		ProfileName: profile,
 		Session:     session,
 	}
-
-	return pool
 }
