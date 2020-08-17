@@ -1,21 +1,18 @@
 package session
 
 import (
-	"sync"
-
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/sirupsen/logrus"
 )
 
-// Pool is a type that holds an instance of an AWS session as well as the profile name used to initialize it
-type Pool struct {
+// Session is an initialized session configuration for a target profile and region
+type Session struct {
 	Logger      *logrus.Logger
 	Session     *session.Session
 	ProfileName string
 }
 
-// PoolSafe is a type that allows for goroutine-safe access to a slice of SessionPool objects via mutex locks
-type PoolSafe struct {
-	sync.Mutex
-	Sessions map[string]*Pool
+// Pool contains a set of session configurations for the target profiles and regions
+type Pool struct {
+	Sessions map[string]*Session
 }

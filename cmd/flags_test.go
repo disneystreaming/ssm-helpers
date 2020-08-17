@@ -5,10 +5,11 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/disneystreaming/ssm-helpers/cmd/cmdutil"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/disneystreaming/ssm-helpers/cmd/cmdutil"
 )
 
 func NewTestCmd() *cobra.Command {

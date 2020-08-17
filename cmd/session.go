@@ -65,7 +65,7 @@ func startSessionCommand(cmd *cobra.Command, args []string) {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	// Set up our AWS session for each permutation of profile + region
-	sessionPool := session.NewPoolSafe(profileList, regionList, log)
+	sessionPool := session.NewPool(profileList, regionList, log)
 
 	// Set up our filters
 	var filterMaps []map[string]string
@@ -89,7 +89,7 @@ func startSessionCommand(cmd *cobra.Command, args []string) {
 	wg.Add(len(sessionPool.Sessions))
 	for _, sess := range sessionPool.Sessions {
 
-		go func(sess *session.Pool, instancePool *instance.InstanceInfoSafe) {
+		go func(sess *session.Session, instancePool *instance.InstanceInfoSafe) {
 			defer wg.Done()
 
 			instanceChan := make(chan []*ssm.InstanceInformation)
