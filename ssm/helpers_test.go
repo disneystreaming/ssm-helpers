@@ -1,37 +1,30 @@
 package ssm
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/disneystreaming/ssm-helpers/ec2"
 	"github.com/disneystreaming/ssm-helpers/ssm/instance"
 )
 
 func TestCreateSSMDescribeInstanceInput(t *testing.T) {
 	assert := assert.New(t)
 
-	var filterSlice []map[string]string
 	filters := map[string]string{
 		"foo": "1",
 		"bar": "2",
 		"baz": "3",
 	}
 
-	moreFilters := map[string]string{
-		"fizz": "4",
-		"buzz": "5",
-	}
-	filterSlice = append(filterSlice, filters, moreFilters)
-
 	instances := &CommaSlice{"i-12345", "i-67890"}
 
-	instanceInput := CreateSSMDescribeInstanceInput(filterSlice, *instances)
+	instanceInput := CreateSSMDescribeInstanceInput(filters, *instances)
 
 	// Ensure that appending of filters is working correctly for multiple tags
-	assert.Lenf(instanceInput.Filters, 6, "Filter slice has wrong number of entries, got %d, expected 6 items (instance IDs + all tags)", len(instanceInput.Filters))
+	assert.Lenf(instanceInput.Filters, 4, "Filter slice has wrong number of entries, got %d, expected 4 items (instance IDs + all tags)", len(instanceInput.Filters))
 
 	// Ensure that MaxResults is set to 50, which is the maximum number of results returned per page
 	assert.Equalf(*instanceInput.MaxResults, int64(50), "MaxResults was not set to the correct value, got %d, expected 50", *instanceInput.MaxResults)
@@ -44,9 +37,6 @@ func TestAddInstanceInfo(t *testing.T) {
 	tagStruct := map[string]string{
 		"foo": "1",
 		"bar": "2",
-			},
-			InstanceID: "i-123",
-		},
 	}
 
 	// Initialize our mutex-safe map

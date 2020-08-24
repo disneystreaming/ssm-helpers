@@ -18,23 +18,23 @@ import (
 )
 
 //CreateSSMDescribeInstanceInput returns an *ssm.DescribeInstanceInformationInput object for use when calling the DescribeInstanceInformation() method
-func CreateSSMDescribeInstanceInput(filters []map[string]string, instances CommaSlice) *ssm.DescribeInstanceInformationInput {
-	var ssmInputFilters []*ssm.InstanceInformationStringFilter
+func CreateSSMDescribeInstanceInput(filters map[string]string, instances CommaSlice) *ssm.DescribeInstanceInformationInput {
+	var iisFilters []*ssm.InstanceInformationStringFilter
 
 	if len(filters) > 0 {
 		for _, v := range filters {
-			//if you have multiple filter groups, this drops all but the last
-			BuildFilters(v, &ssmInputFilters)
-			// Build our filters based on --filter and --instances flags
+	//if you have multiple filter groups, this drops all but the last
+	BuildFilters(filters, &iisFilters)
+	// Build our filters based on --filter and --instances flags
 		}
 	}
 
 	if len(instances) > 0 {
-		AppendSSMFilter(&ssmInputFilters, NewSSMInstanceFilter("InstanceIds", instances))
+		AppendSSMFilter(&iisFilters, NewSSMInstanceFilter("InstanceIds", instances))
 	}
 
 	ssmInput := &ssm.DescribeInstanceInformationInput{
-		Filters: ssmInputFilters,
+		Filters: iisFilters,
 	}
 
 	// Max number of results per page allowed by the API is 50
