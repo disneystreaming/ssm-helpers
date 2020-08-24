@@ -154,31 +154,48 @@ func addInvocationResults(results *invocation.ResultSafe, session *session.Sessi
 }
 
 // CheckInstanceReadiness iterates through a list of instances and verifies whether or not it is start-session capable. If it is, it appends the instance info to an instances.InstanceInfoSafe slice.
-func CheckInstanceReadiness(session *session.Session, ssmSession *ssm.SSM, instanceList []*ssm.InstanceInformation, readyInstancePool *instance.InstanceInfoSafe, limit int) {
-	var readyInstances int
-	ec2Sess := ec2.New(session.Session)
+func CheckInstanceReadiness(session *session.Session, client ssmiface.SSMAPI, instanceList []*ssm.InstanceInformation, limit int, readyInstancePool *instance.InstanceInfoSafe) {
+	var readyInstances, ec2Instances []*string
+	var instanceCount int
 
 	for _, instance := range instanceList {
-		if readyInstances < limit {
-			// Check and see if our instance supports start-session
-			ready, err := startsession.CheckSSMStartSession(ssmSession, instance.InstanceId)
-			if !ready {
-				if err != nil {
-					log.Debug(err)
-				}
-				continue
-			}
-
-			// If the instance is good, let's get the tags to display during instance selection
-			tags, err := ec2helpers.GetEC2InstanceTags(ec2Sess, *instance.InstanceId)
-			if err != nil {
-				log.Errorf("Could not retrieve tags for instance %s\n%s", *instance.InstanceId, err)
-				continue
-			}
-
-			// Append our instance info to the master list
-			addInstanceInfo(instance.InstanceId, tags, readyInstancePool, session.ProfileName, *session.Session.Config.Region)
+		if instanceCount >= limit {
+			continue
 		}
+
+		// Check and see if our instance supports start-session
+		ready, err := startsession.CheckSessionReadiness(client, instance.InstanceId)
+		if !ready && err != nil {
+			session.Logger.Error(fmt.Errorf("Error when trying to check session readiness for instance %v\n%v", *instance.InstanceId, err))
+			return
+		}
+
+		// Instances that are verified as being ready for sessions
+		readyInstances = append(readyInstances, instance.InstanceId)
+
+		// EC2 instances are all non-managed, so let's create a slice of instances that have fetchable tags
+		if !strings.HasPrefix(*instance.InstanceId, "mi-") {
+			ec2Instances = append(ec2Instances, instance.InstanceId)
+		}
+
+		instanceCount++
+	}
+
+	// If the instance is good, let's get the tags to display during instance selection
+	ec2Client := ec2.New(session.Session)
+	tags, err := ec2helpers.GetEC2InstanceTags(ec2Client, ec2Instances)
+	if err != nil {
+		session.Logger.Error(err)
+	}
+
+	if limit > len(readyInstances) {
+		limit = len(readyInstances)
+	}
+
+	for _, i := range readyInstances[:limit] {
+		// Append our instance info to the master list
+		addInstanceInfo(i, tags[*i], readyInstancePool, session.ProfileName, *session.Session.Config.Region)
+	}
 		readyInstances++
 	}
 }
