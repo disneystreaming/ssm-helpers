@@ -41,11 +41,9 @@ func TestAddInstanceInfo(t *testing.T) {
 	assert := assert.New(t)
 
 	// Create our tag data
-	tagStruct := []ec2.InstanceTags{
-		{
-			Tags: map[string]string{
-				"foo": "1",
-				"bar": "2",
+	tagStruct := map[string]string{
+		"foo": "1",
+		"bar": "2",
 			},
 			InstanceID: "i-123",
 		},
@@ -64,10 +62,6 @@ func TestAddInstanceInfo(t *testing.T) {
 		ip.AllInstances["i-123"].InstanceID,
 	)
 
-	assert.Truef(
-		ip.AllInstances["i-123"].Tags["foo"] == "1" && ip.AllInstances["i-123"].Tags["bar"] == "2",
-		"Instance info object returned incorrect tag data, got %s",
-		ip.AllInstances["i-123"].Tags,
-	)
+	assert.True(reflect.DeepEqual(ip.AllInstances["i-123"].Tags, tagStruct))
 
 }

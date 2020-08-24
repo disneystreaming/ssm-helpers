@@ -43,18 +43,17 @@ func CreateSSMDescribeInstanceInput(filters []map[string]string, instances Comma
 	return ssmInput
 }
 
-func addInstanceInfo(instanceID *string, tags []ec2helpers.InstanceTags, instancePool *instance.InstanceInfoSafe, profile string, region string) {
-	for _, v := range tags {
-		instancePool.Lock()
-		// If the instance is good, append its info to the master list
-		instancePool.AllInstances[*instanceID] = instance.InstanceInfo{
-			InstanceID: *instanceID,
-			Profile:    profile,
-			Region:     region,
-			Tags:       v.Tags,
-		}
-		instancePool.Unlock()
+func addInstanceInfo(instanceID *string, tags map[string]string, instancePool *instance.InstanceInfoSafe, profile string, region string) {
+	instancePool.Lock()
+	// If the instance is good, append its info to the master list
+	instancePool.AllInstances[*instanceID] = instance.InstanceInfo{
+		InstanceID: *instanceID,
+		Profile:    profile,
+		Region:     region,
+		Tags:       tags,
 	}
+	instancePool.Unlock()
+}
 }
 
 func checkInvocationStatus(client ssmiface.SSMAPI, commandID *string) (done bool, err error) {
