@@ -34,6 +34,7 @@ func newCommandSSMSession() *cobra.Command {
 		},
 	}
 
+	addBaseFlags(cmd)
 	cmdutil.AddLimitFlag(cmd, 10, "Set a limit for the number of instance results returned per profile/region combination.")
 	cmdutil.AddTagFlag(cmd)
 	cmdutil.AddSessionNameFlag(cmd, "ssm-session")
@@ -57,6 +58,7 @@ func startSessionCommand(cmd *cobra.Command, args []string) {
 	}
 	dryRunFlag, err := cmdutil.GetFlagBool(cmd.Parent(), "dry-run")
 	filterList, err = cmdutil.GetFlagStringSlice(cmd.Parent(), "filter")
+	instanceList, err = cmdutil.GetFlagStringSlice(cmd, "instance")
 	tagList, err = cmdutil.GetFlagStringSlice(cmd, "tag")
 	limitFlag, err := cmdutil.GetFlagInt(cmd, "limit")
 	sessionName, err := cmdutil.GetFlagString(cmd, "session-name")
