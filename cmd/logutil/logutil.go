@@ -55,6 +55,7 @@ func SetLogSplitOutput(l *log.Logger) {
 		LogLevels: []log.Level{
 			log.InfoLevel,
 			log.DebugLevel,
+			log.TraceLevel,
 		},
 	})
 }
@@ -66,6 +67,7 @@ func IntToLogLevel(levelInt int) log.Level {
 		1: log.ErrorLevel,
 		2: log.InfoLevel,
 		3: log.DebugLevel,
+		4: log.TraceLevel,
 	}
 
 	if level, ok := toLogLevel[levelInt]; ok {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	log "github.com/sirupsen/logrus"
 
@@ -55,6 +56,10 @@ func newSession(profile string, region string, logger *log.Logger) *Session {
 	session, err := session.NewSessionWithOptions(options)
 	if err != nil {
 		logger.Fatalf("Error when trying to create session:\n%v", err)
+	}
+
+	if logger.Level == log.TraceLevel {
+		*session.Config.LogLevel = aws.LogDebugWithHTTPBody
 	}
 
 	return &Session{
