@@ -2,13 +2,13 @@ package ssm
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
-	log "github.com/sirupsen/logrus"
 
 	"github.com/disneystreaming/ssm-helpers/aws/session"
 	ec2helpers "github.com/disneystreaming/ssm-helpers/ec2"
@@ -21,13 +21,9 @@ import (
 func CreateSSMDescribeInstanceInput(filters map[string]string, instances CommaSlice) *ssm.DescribeInstanceInformationInput {
 	var iisFilters []*ssm.InstanceInformationStringFilter
 
-	if len(filters) > 0 {
-		for _, v := range filters {
 	//if you have multiple filter groups, this drops all but the last
 	BuildFilters(filters, &iisFilters)
 	// Build our filters based on --filter and --instances flags
-		}
-	}
 
 	if len(instances) > 0 {
 		AppendSSMFilter(&iisFilters, NewSSMInstanceFilter("InstanceIds", instances))
@@ -54,7 +50,6 @@ func addInstanceInfo(instanceID *string, tags map[string]string, instancePool *i
 	}
 	instancePool.Unlock()
 }
-}
 
 func checkInvocationStatus(client ssmiface.SSMAPI, commandID *string) (done bool, err error) {
 	var invocation *ssm.ListCommandsOutput
@@ -79,9 +74,6 @@ func checkInvocationStatus(client ssmiface.SSMAPI, commandID *string) (done bool
 // RunInvocations invokes an SSM document with given parameters on the provided slice of instances
 func RunInvocations(sess *session.Session, client ssmiface.SSMAPI, wg *sync.WaitGroup, input *ssm.SendCommandInput, results *invocation.ResultSafe) {
 	defer wg.Done()
-
-	oc := make(chan *ssm.GetCommandInvocationOutput)
-	ec := make(chan error)
 	var scOutput *ssm.SendCommandOutput
 	var err error
 
@@ -102,7 +94,9 @@ func RunInvocations(sess *session.Session, client ssmiface.SSMAPI, wg *sync.Wait
 		}
 	}
 
-	// Set up our LCI input object
+	// Set up our channels and LCI input object
+	oc := make(chan *ssm.GetCommandInvocationOutput)
+	ec := make(chan error)
 	lciInput := &ssm.ListCommandInvocationsInput{
 		CommandId: commandID,
 	}
@@ -153,7 +147,6 @@ func addInvocationResults(results *invocation.ResultSafe, session *session.Sessi
 	results.InvocationResults = append(results.InvocationResults, newResults...)
 	results.Unlock()
 }
-}
 
 // CheckInstanceReadiness iterates through a list of instances and verifies whether or not it is start-session capable. If it is, it appends the instance info to an instances.InstanceInfoSafe slice.
 func CheckInstanceReadiness(session *session.Session, client ssmiface.SSMAPI, instanceList []*ssm.InstanceInformation, limit int, readyInstancePool *instance.InstanceInfoSafe) {
@@ -198,27 +191,4 @@ func CheckInstanceReadiness(session *session.Session, client ssmiface.SSMAPI, in
 		// Append our instance info to the master list
 		addInstanceInfo(i, tags[*i], readyInstancePool, session.ProfileName, *session.Session.Config.Region)
 	}
-		readyInstances++
-	}
-}
-
-// GetInstanceList creates a DescribeInstanceInput object and returns all SSM instances that match the provided filters
-func GetInstanceList(ssmSession *ssm.SSM, filters []map[string]string, instanceInput CommaSlice, checkLatestAgent bool, infoChan chan []*ssm.InstanceInformation, errChan chan error) {
-
-	//Create our instance input object (filters, instances)
-	ssmInput := CreateSSMDescribeInstanceInput(filters, instanceInput)
-
-	// Get our list of all instances in the current session that match
-	// the filters we've configured (this will also pare down instances)
-	output, err := instance.GetAllSSMInstances(ssmSession, ssmInput, checkLatestAgent)
-
-	infoChan <- output
-	/*
-		This can happen when a given profile permutation doesn't have the
-		correct permissions or when it lacks SSM access. Since we may have
-		multiple sessions to iterate through and the rest of the program
-		does nothing without an instance as input, this is a non-fatal error.
-	*/
-	errChan <- err
-
 }
