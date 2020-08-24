@@ -37,7 +37,7 @@ func SliceToTargets(kvslice []string) (targets []*ssm.Target) {
 	for i := 0; i < len(kvslice); i++ {
 		elements = strings.Split(kvslice[i], "=")
 		targets = append(targets, &ssm.Target{
-			Key:    aws.String(elements[0]),
+			Key:    aws.String("tag:" + elements[0]),
 			Values: aws.StringSlice([]string{elements[1]}),
 		})
 	}
