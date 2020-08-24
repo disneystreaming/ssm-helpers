@@ -139,6 +139,7 @@ func RunInvocations(sess *session.Session, client ssmiface.SSMAPI, wg *sync.Wait
 }
 
 func addInvocationResults(results *invocation.ResultSafe, session *session.Session, info ...*ssm.GetCommandInvocationOutput) {
+	var newResults []*invocation.Result
 	for _, v := range info {
 		var result = &invocation.Result{
 			InvocationResult: v,
@@ -146,11 +147,13 @@ func addInvocationResults(results *invocation.ResultSafe, session *session.Sessi
 			Region:           *session.Session.Config.Region,
 			Status:           *v.StatusDetails,
 		}
-
-		results.Lock()
-		results.InvocationResults = append(results.InvocationResults, result)
-		results.Unlock()
+		newResults = append(newResults, result)
 	}
+
+	results.Lock()
+	results.InvocationResults = append(results.InvocationResults, newResults...)
+	results.Unlock()
+}
 }
 
 // CheckInstanceReadiness iterates through a list of instances and verifies whether or not it is start-session capable. If it is, it appends the instance info to an instances.InstanceInfoSafe slice.
