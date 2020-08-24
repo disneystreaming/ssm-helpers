@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -21,7 +22,6 @@ import (
 	"github.com/disneystreaming/ssm-helpers/cmd/cmdutil"
 	ssmx "github.com/disneystreaming/ssm-helpers/ssm"
 	"github.com/disneystreaming/ssm-helpers/ssm/instance"
-	"github.com/disneystreaming/ssm-helpers/util"
 )
 
 func newCommandSSMSession() *cobra.Command {
@@ -34,18 +34,31 @@ func newCommandSSMSession() *cobra.Command {
 		},
 	}
 
-	cmdutil.AddLimitFlag(cmd, 10, "Set a limit for the number of instance results returned per profile/region combination.")
-	cmdutil.AddTagFlag(cmd)
-	cmdutil.AddSessionNameFlag(cmd, "ssm-session")
+	addBaseFlags(cmd)
+	addSessionFlags(cmd)
+
 	return cmd
 }
 
 func startSessionCommand(cmd *cobra.Command, args []string) {
 	var err error
-	var instanceList, profileList, regionList, filterList, tagList []string
+	var instanceList, profileList, regionList, tagList []string
 
 	// Get all of our CLI flag values
 	if err = cmdutil.ValidateArgs(cmd, args); err != nil {
+		log.Fatal(err)
+	}
+
+	if instanceList, err = cmdutil.GetFlagStringSlice(cmd, "instance"); err != nil {
+		log.Fatal(err)
+	}
+
+	var filterList map[string]string
+	if filterList, err = cmdutil.GetMapFromStringSlice(cmd, "filter"); err != nil {
+		log.Fatal(err)
+	}
+
+	if err = validateSessionFlags(cmd, instanceList, filterList); err != nil {
 		log.Fatal(err)
 	}
 
@@ -55,30 +68,27 @@ func startSessionCommand(cmd *cobra.Command, args []string) {
 	if regionList, err = getRegionList(cmd); err != nil {
 		log.Fatal(err)
 	}
-	dryRunFlag, err := cmdutil.GetFlagBool(cmd.Parent(), "dry-run")
-	filterList, err = cmdutil.GetFlagStringSlice(cmd.Parent(), "filter")
-	tagList, err = cmdutil.GetFlagStringSlice(cmd, "tag")
-	limitFlag, err := cmdutil.GetFlagInt(cmd, "limit")
-	sessionName, err := cmdutil.GetFlagString(cmd, "session-name")
+	if tagList, err = cmdutil.GetFlagStringSlice(cmd, "tag"); err != nil {
+		log.Fatal(err)
+	}
+
+	var dryRunFlag bool
+	if dryRunFlag, err = cmdutil.GetFlagBool(cmd, "dry-run"); err != nil {
+		log.Fatal(err)
+	}
+
+	var sessionName string
+	if sessionName, err = cmdutil.GetFlagString(cmd, "session-name"); err != nil {
+		log.Fatal(err)
+	}
+
+	var limitFlag int
+	if limitFlag, err = cmdutil.GetFlagInt(cmd, "limit"); err != nil {
+		log.Fatal(err)
+	}
 
 	// Get the number of cores available for parallelization
 	runtime.GOMAXPROCS(runtime.NumCPU())
-
-	// Set up our AWS session for each permutation of profile + region
-	sessionPool := session.NewPool(profileList, regionList, log)
-
-	// Set up our filters
-	var filterMaps []map[string]string
-
-	// Convert the filter slice to a map
-	filterMap := make(map[string]string)
-
-	if len(filterList) > 0 {
-		util.SliceToMap(filterList, &filterMap)
-		filterMaps = append(filterMaps, filterMap)
-	}
-
-	var wg sync.WaitGroup
 
 	// Master list for later
 	instancePool := instance.InstanceInfoSafe{
