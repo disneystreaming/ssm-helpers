@@ -13,23 +13,23 @@ func getEC2InstanceInfo(client ec2iface.EC2API, instances []*string) (output []*
 		InstanceIds: instances,
 	}
 
+	describeInstacesPager := func(page *ec2.DescribeInstancesOutput, lastPage bool) bool {
+		for _, reservation := range page.Reservations {
+			output = append(output, reservation.Instances...)
+		}
+
+		// Last page, break out
+		if page.NextToken == nil {
+			return false
+		}
+
+		// If not, set the token in order to fetch the next page
+		diInput.SetNextToken(*page.NextToken)
+		return true
+	}
+
 	// Fetch all the instances described
-	if err = client.DescribeInstancesPages(
-		diInput,
-		func(page *ec2.DescribeInstancesOutput, lastPage bool) bool {
-			for _, reservation := range page.Reservations {
-				output = append(output, reservation.Instances...)
-			}
-
-			// Last page, break out
-			if page.NextToken == nil {
-				return false
-			}
-
-			// If not, set the token in order to fetch the next page
-			diInput.SetNextToken(*page.NextToken)
-			return true
-		}); err != nil {
+	if err = client.DescribeInstancesPages(diInput, describeInstacesPager); err != nil {
 		return nil, fmt.Errorf("Could not describe EC2 instances\n%v", err)
 	}
 
