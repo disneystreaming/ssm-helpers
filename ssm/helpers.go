@@ -22,7 +22,7 @@ func CreateSSMDescribeInstanceInput(filters map[string]string, instances CommaSl
 	var iisFilters []*ssm.InstanceInformationStringFilter
 
 	//if you have multiple filter groups, this drops all but the last
-	BuildFilters(filters, &iisFilters)
+	buildFilters(filters, &iisFilters)
 	// Build our filters based on --filter and --instances flags
 
 	if len(instances) > 0 {
