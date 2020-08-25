@@ -1,63 +1,59 @@
 package ec2
 
 import (
-	"github.com/aws/aws-sdk-go/aws"
+	"fmt"
+
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 )
 
-func getEC2InstanceInfo(context ec2iface.EC2API, instances ...string) (output []*ec2.DescribeInstancesOutput, err error) {
-
-	instanceInput := &ec2.DescribeInstancesInput{
-		InstanceIds: aws.StringSlice(instances),
+func getEC2InstanceInfo(client ec2iface.EC2API, instances []*string) (output []*ec2.Instance, err error) {
+	// Set up our DI input object
+	diInput := &ec2.DescribeInstancesInput{
+		InstanceIds: instances,
 	}
 
-	results, err := context.DescribeInstances(instanceInput)
-	if err != nil {
-		return nil, err
-	}
-	output = append(output, results)
+	describeInstacesPager := func(page *ec2.DescribeInstancesOutput, lastPage bool) bool {
+		for _, reservation := range page.Reservations {
+			output = append(output, reservation.Instances...)
+		}
 
-	for results.NextToken != nil {
-		if *results.NextToken != "" {
-			instanceInput.SetNextToken(*results.NextToken)
+		// Last page, break out
+		if page.NextToken == nil {
+			return false
 		}
-		// Get our next page of results
-		results, err = context.DescribeInstances(instanceInput)
-		if err != nil {
-			return output, err
-		}
-		output = append(output, results)
+
+		// If not, set the token in order to fetch the next page
+		diInput.SetNextToken(*page.NextToken)
+		return true
+	}
+
+	// Fetch all the instances described
+	if err = client.DescribeInstancesPages(diInput, describeInstacesPager); err != nil {
+		return nil, fmt.Errorf("Could not describe EC2 instances\n%v", err)
 	}
 
 	return output, nil
 }
 
 // GetEC2InstanceTags accepts any number of instance strings and returns a populated InstanceTags{} object for each instance
-func GetEC2InstanceTags(context ec2iface.EC2API, instances ...string) (tags []InstanceTags, err error) {
+func GetEC2InstanceTags(client ec2iface.EC2API, instances []*string) (ec2Tags map[string]Tags, err error) {
 
-	instanceInfo, err := getEC2InstanceInfo(context, instances...)
+	instanceInfo, err := getEC2InstanceInfo(client, instances)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error when trying to retrieve EC2 instance tags\n%v", err)
 	}
 
-	for _, page := range instanceInfo {
-		for _, res := range page.Reservations {
-			for _, inst := range res.Instances {
+	ec2Tags = make(map[string]Tags)
+	for _, i := range instanceInfo {
+		tagMap := make(map[string]string)
 
-				tagStruct := &InstanceTags{
-					Tags:       make(map[string]string),
-					InstanceID: *inst.InstanceId,
-				}
-
-				for _, tag := range inst.Tags {
-					tagStruct.Tags[*tag.Key] = *tag.Value
-				}
-
-				tags = append(tags, *tagStruct)
-			}
+		for _, tag := range i.Tags {
+			tagMap[*tag.Key] = *tag.Value
 		}
+
+		ec2Tags[*i.InstanceId] = tagMap
 	}
 
-	return tags, nil
+	return ec2Tags, nil
 }

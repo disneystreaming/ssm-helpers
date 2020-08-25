@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -21,7 +22,6 @@ import (
 	"github.com/disneystreaming/ssm-helpers/cmd/cmdutil"
 	ssmx "github.com/disneystreaming/ssm-helpers/ssm"
 	"github.com/disneystreaming/ssm-helpers/ssm/instance"
-	"github.com/disneystreaming/ssm-helpers/util"
 )
 
 func newCommandSSMSession() *cobra.Command {
@@ -34,18 +34,31 @@ func newCommandSSMSession() *cobra.Command {
 		},
 	}
 
-	cmdutil.AddLimitFlag(cmd, 10, "Set a limit for the number of instance results returned per profile/region combination.")
-	cmdutil.AddTagFlag(cmd)
-	cmdutil.AddSessionNameFlag(cmd, "ssm-session")
+	addBaseFlags(cmd)
+	addSessionFlags(cmd)
+
 	return cmd
 }
 
 func startSessionCommand(cmd *cobra.Command, args []string) {
 	var err error
-	var instanceList, profileList, regionList, filterList, tagList []string
+	var instanceList, profileList, regionList, tagList []string
 
 	// Get all of our CLI flag values
 	if err = cmdutil.ValidateArgs(cmd, args); err != nil {
+		log.Fatal(err)
+	}
+
+	if instanceList, err = cmdutil.GetFlagStringSlice(cmd, "instance"); err != nil {
+		log.Fatal(err)
+	}
+
+	var filterList map[string]string
+	if filterList, err = cmdutil.GetMapFromStringSlice(cmd, "filter"); err != nil {
+		log.Fatal(err)
+	}
+
+	if err = validateSessionFlags(cmd, instanceList, filterList); err != nil {
 		log.Fatal(err)
 	}
 
@@ -55,75 +68,69 @@ func startSessionCommand(cmd *cobra.Command, args []string) {
 	if regionList, err = getRegionList(cmd); err != nil {
 		log.Fatal(err)
 	}
-	dryRunFlag, err := cmdutil.GetFlagBool(cmd.Parent(), "dry-run")
-	filterList, err = cmdutil.GetFlagStringSlice(cmd.Parent(), "filter")
-	tagList, err = cmdutil.GetFlagStringSlice(cmd, "tag")
-	limitFlag, err := cmdutil.GetFlagInt(cmd, "limit")
-	sessionName, err := cmdutil.GetFlagString(cmd, "session-name")
+	if tagList, err = cmdutil.GetFlagStringSlice(cmd, "tag"); err != nil {
+		log.Fatal(err)
+	}
+
+	var dryRunFlag bool
+	if dryRunFlag, err = cmdutil.GetFlagBool(cmd, "dry-run"); err != nil {
+		log.Fatal(err)
+	}
+
+	var sessionName string
+	if sessionName, err = cmdutil.GetFlagString(cmd, "session-name"); err != nil {
+		log.Fatal(err)
+	}
+
+	var limitFlag int
+	if limitFlag, err = cmdutil.GetFlagInt(cmd, "limit"); err != nil {
+		log.Fatal(err)
+	}
 
 	// Get the number of cores available for parallelization
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	// Set up our AWS session for each permutation of profile + region
-	sessionPool := session.NewPool(profileList, regionList, log)
+	// Create our instance input object (filters, instances)
+	diiInput := ssmx.CreateSSMDescribeInstanceInput(filterList, instanceList)
 
-	// Set up our filters
-	var filterMaps []map[string]string
-
-	// Convert the filter slice to a map
-	filterMap := make(map[string]string)
-
-	if len(filterList) > 0 {
-		util.SliceToMap(filterList, &filterMap)
-		filterMaps = append(filterMaps, filterMap)
-	}
-
-	var wg sync.WaitGroup
-
-	// Master list for later
+	// Create threadsafe pool of instance info to use for selection
 	instancePool := instance.InstanceInfoSafe{
 		AllInstances: make(map[string]instance.InstanceInfo),
 	}
-	var totalInstances int
-	// Iterate through our AWS sessions
-	wg.Add(len(sessionPool.Sessions))
-	for _, sess := range sessionPool.Sessions {
 
+	var totalInstances int32
+	var wg sync.WaitGroup
+
+	// Set up our AWS session for each permutation of profile + region and iterate over them
+	sessionPool := session.NewPool(profileList, regionList, log)
+	for _, sess := range sessionPool.Sessions {
+		wg.Add(1)
 		go func(sess *session.Session, instancePool *instance.InstanceInfoSafe) {
 			defer wg.Done()
 
-			instanceChan := make(chan []*ssm.InstanceInformation)
-			errChan := make(chan error)
-			svc := ssm.New(sess.Session)
-
-			go ssmx.GetInstanceList(svc, filterMaps, instanceList, false, instanceChan, errChan)
-			instanceList, err := <-instanceChan, <-errChan
-
+			client := ssm.New(sess.Session)
+			sessionInstances, err := instance.GetSessionInstances(client, diiInput)
 			if err != nil {
-				log.Debugf("AWS Session Parameters: %s, %s", *sess.Session.Config.Region, sess.ProfileName)
-				log.Error(err)
+				log.Tracef("AWS Session Parameters: %s, %s", *sess.Session.Config.Region, sess.ProfileName)
+				log.Fatal(err)
 			}
 
-			totalInstances += len(instanceList)
-			ssmx.CheckInstanceReadiness(sess, svc, instanceList, instancePool, limitFlag)
+			atomic.AddInt32(&totalInstances, int32(len(sessionInstances)))
+			ssmx.CheckInstanceReadiness(sess, client, sessionInstances, limitFlag, instancePool)
 		}(sess, &instancePool)
 	}
 
 	wg.Wait()
 
-	log.Infof("Found %d usable instances.", len(instancePool.AllInstances))
+	log.Infof("Retrieved %d usable instances.", len(instancePool.AllInstances))
 
 	// No functional results, exit now
-	if len(instancePool.AllInstances) == 0 {
+	if len(instancePool.AllInstances) == 0 || dryRunFlag {
 		return
 	}
 
-	// If -i flag is set, don't prompt for instance selection
-	if dryRunFlag {
-		return
-	}
 	// Single instance specified or found, starting session in current terminal (non-multiplexed)
-	if len(instanceList) == 1 {
+	if len(instancePool.AllInstances) == 1 {
 		for _, v := range instancePool.AllInstances {
 			if err := startSSMSession(v.Profile, v.Region, v.InstanceID); err != nil {
 				log.Errorf("Failed to start ssm-session for instance %s\n%s", v.InstanceID, err)
@@ -158,10 +165,9 @@ func startSessionCommand(cmd *cobra.Command, args []string) {
 		if len(selectedInstances) == 1 {
 			for _, v := range selectedInstances {
 				if err := startSSMSession(v.Profile, v.Region, v.InstanceID); err != nil {
-					log.Errorf("Failed to start ssm-session for instance %s\n%s", v.InstanceID, err)
+					log.Fatalf("Failed to start session for instance %s\n%s", v.InstanceID, err)
 				}
 			}
-			return
 		}
 
 		if err = configTmuxSession(sessionName, selectedInstances); err != nil {
@@ -176,7 +182,7 @@ func startSessionCommand(cmd *cobra.Command, args []string) {
 			log.Errorf("Could not attach to tmux session '%s'\n%s", sessionName, err)
 		}
 	} else {
-		log.Info("To force nested Tmux sessions unset $TMUX")
+		log.Info("To force nested tmux sessions, unset $TMUX.")
 		log.Infof("Attach to the session with `tmux attach -t %s`", sessionName)
 	}
 }
@@ -297,7 +303,7 @@ func addInstanceToTmuxWindow(tmuxWindow *gomux.Window, profile string, region st
 	return tPane.Exec(fmt.Sprintf("aws ssm start-session --profile %s --region %s --target %s", profile, region, instanceID))
 }
 
-func startSelectionPrompt(instances *instance.InstanceInfoSafe, totalInstances int, tags ssmx.ListSlice) (selectedInstances []instance.InstanceInfo, err error) {
+func startSelectionPrompt(instances *instance.InstanceInfoSafe, totalInstances int32, tags ssmx.ListSlice) (selectedInstances []instance.InstanceInfo, err error) {
 	instanceIDList := []string{}
 	promptList := instances.FormatStringSlice([]string(tags)...)
 	fmt.Println("      ", promptList[0])

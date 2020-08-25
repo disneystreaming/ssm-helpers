@@ -2,13 +2,13 @@ package ssm
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
-	log "github.com/sirupsen/logrus"
 
 	"github.com/disneystreaming/ssm-helpers/aws/session"
 	ec2helpers "github.com/disneystreaming/ssm-helpers/ec2"
@@ -18,23 +18,19 @@ import (
 )
 
 //CreateSSMDescribeInstanceInput returns an *ssm.DescribeInstanceInformationInput object for use when calling the DescribeInstanceInformation() method
-func CreateSSMDescribeInstanceInput(filters []map[string]string, instances CommaSlice) *ssm.DescribeInstanceInformationInput {
-	var ssmInputFilters []*ssm.InstanceInformationStringFilter
+func CreateSSMDescribeInstanceInput(filters map[string]string, instances CommaSlice) *ssm.DescribeInstanceInformationInput {
+	var iisFilters []*ssm.InstanceInformationStringFilter
 
-	if len(filters) > 0 {
-		for _, v := range filters {
-			//if you have multiple filter groups, this drops all but the last
-			BuildFilters(v, &ssmInputFilters)
-			// Build our filters based on --filter and --instances flags
-		}
-	}
+	//if you have multiple filter groups, this drops all but the last
+	buildFilters(filters, &iisFilters)
+	// Build our filters based on --filter and --instances flags
 
 	if len(instances) > 0 {
-		AppendSSMFilter(&ssmInputFilters, NewSSMInstanceFilter("InstanceIds", instances))
+		AppendSSMFilter(&iisFilters, NewSSMInstanceFilter("InstanceIds", instances))
 	}
 
 	ssmInput := &ssm.DescribeInstanceInformationInput{
-		Filters: ssmInputFilters,
+		Filters: iisFilters,
 	}
 
 	// Max number of results per page allowed by the API is 50
@@ -43,18 +39,16 @@ func CreateSSMDescribeInstanceInput(filters []map[string]string, instances Comma
 	return ssmInput
 }
 
-func addInstanceInfo(instanceID *string, tags []ec2helpers.InstanceTags, instancePool *instance.InstanceInfoSafe, profile string, region string) {
-	for _, v := range tags {
-		instancePool.Lock()
-		// If the instance is good, append its info to the master list
-		instancePool.AllInstances[*instanceID] = instance.InstanceInfo{
-			InstanceID: *instanceID,
-			Profile:    profile,
-			Region:     region,
-			Tags:       v.Tags,
-		}
-		instancePool.Unlock()
+func addInstanceInfo(instanceID *string, tags map[string]string, instancePool *instance.InstanceInfoSafe, profile string, region string) {
+	instancePool.Lock()
+	// If the instance is good, append its info to the master list
+	instancePool.AllInstances[*instanceID] = instance.InstanceInfo{
+		InstanceID: *instanceID,
+		Profile:    profile,
+		Region:     region,
+		Tags:       tags,
 	}
+	instancePool.Unlock()
 }
 
 func checkInvocationStatus(client ssmiface.SSMAPI, commandID *string) (done bool, err error) {
@@ -80,9 +74,6 @@ func checkInvocationStatus(client ssmiface.SSMAPI, commandID *string) (done bool
 // RunInvocations invokes an SSM document with given parameters on the provided slice of instances
 func RunInvocations(sess *session.Session, client ssmiface.SSMAPI, wg *sync.WaitGroup, input *ssm.SendCommandInput, results *invocation.ResultSafe) {
 	defer wg.Done()
-
-	oc := make(chan *ssm.GetCommandInvocationOutput)
-	ec := make(chan error)
 	var scOutput *ssm.SendCommandOutput
 	var err error
 
@@ -103,7 +94,9 @@ func RunInvocations(sess *session.Session, client ssmiface.SSMAPI, wg *sync.Wait
 		}
 	}
 
-	// Set up our LCI input object
+	// Set up our channels and LCI input object
+	oc := make(chan *ssm.GetCommandInvocationOutput)
+	ec := make(chan error)
 	lciInput := &ssm.ListCommandInvocationsInput{
 		CommandId: commandID,
 	}
@@ -139,6 +132,7 @@ func RunInvocations(sess *session.Session, client ssmiface.SSMAPI, wg *sync.Wait
 }
 
 func addInvocationResults(results *invocation.ResultSafe, session *session.Session, info ...*ssm.GetCommandInvocationOutput) {
+	var newResults []*invocation.Result
 	for _, v := range info {
 		var result = &invocation.Result{
 			InvocationResult: v,
@@ -146,60 +140,55 @@ func addInvocationResults(results *invocation.ResultSafe, session *session.Sessi
 			Region:           *session.Session.Config.Region,
 			Status:           *v.StatusDetails,
 		}
-
-		results.Lock()
-		results.InvocationResults = append(results.InvocationResults, result)
-		results.Unlock()
+		newResults = append(newResults, result)
 	}
+
+	results.Lock()
+	results.InvocationResults = append(results.InvocationResults, newResults...)
+	results.Unlock()
 }
 
 // CheckInstanceReadiness iterates through a list of instances and verifies whether or not it is start-session capable. If it is, it appends the instance info to an instances.InstanceInfoSafe slice.
-func CheckInstanceReadiness(session *session.Session, ssmSession *ssm.SSM, instanceList []*ssm.InstanceInformation, readyInstancePool *instance.InstanceInfoSafe, limit int) {
-	var readyInstances int
-	ec2Sess := ec2.New(session.Session)
+func CheckInstanceReadiness(session *session.Session, client ssmiface.SSMAPI, instanceList []*ssm.InstanceInformation, limit int, readyInstancePool *instance.InstanceInfoSafe) {
+	var readyInstances, ec2Instances []*string
+	var instanceCount int
 
 	for _, instance := range instanceList {
-		if readyInstances < limit {
-			// Check and see if our instance supports start-session
-			ready, err := startsession.CheckSSMStartSession(ssmSession, instance.InstanceId)
-			if !ready {
-				if err != nil {
-					log.Debug(err)
-				}
-				continue
-			}
-
-			// If the instance is good, let's get the tags to display during instance selection
-			tags, err := ec2helpers.GetEC2InstanceTags(ec2Sess, *instance.InstanceId)
-			if err != nil {
-				log.Errorf("Could not retrieve tags for instance %s\n%s", *instance.InstanceId, err)
-				continue
-			}
-
-			// Append our instance info to the master list
-			addInstanceInfo(instance.InstanceId, tags, readyInstancePool, session.ProfileName, *session.Session.Config.Region)
+		if instanceCount >= limit {
+			continue
 		}
-		readyInstances++
+
+		// Check and see if our instance supports start-session
+		ready, err := startsession.CheckSessionReadiness(client, instance.InstanceId)
+		if !ready && err != nil {
+			session.Logger.Error(fmt.Errorf("Error when trying to check session readiness for instance %v\n%v", *instance.InstanceId, err))
+			return
+		}
+
+		// Instances that are verified as being ready for sessions
+		readyInstances = append(readyInstances, instance.InstanceId)
+
+		// EC2 instances are all non-managed, so let's create a slice of instances that have fetchable tags
+		if !strings.HasPrefix(*instance.InstanceId, "mi-") {
+			ec2Instances = append(ec2Instances, instance.InstanceId)
+		}
+
+		instanceCount++
 	}
-}
 
-// GetInstanceList creates a DescribeInstanceInput object and returns all SSM instances that match the provided filters
-func GetInstanceList(ssmSession *ssm.SSM, filters []map[string]string, instanceInput CommaSlice, checkLatestAgent bool, infoChan chan []*ssm.InstanceInformation, errChan chan error) {
+	// If the instance is good, let's get the tags to display during instance selection
+	ec2Client := ec2.New(session.Session)
+	tags, err := ec2helpers.GetEC2InstanceTags(ec2Client, ec2Instances)
+	if err != nil {
+		session.Logger.Error(err)
+	}
 
-	//Create our instance input object (filters, instances)
-	ssmInput := CreateSSMDescribeInstanceInput(filters, instanceInput)
+	if limit > len(readyInstances) {
+		limit = len(readyInstances)
+	}
 
-	// Get our list of all instances in the current session that match
-	// the filters we've configured (this will also pare down instances)
-	output, err := instance.GetAllSSMInstances(ssmSession, ssmInput, checkLatestAgent)
-
-	infoChan <- output
-	/*
-		This can happen when a given profile permutation doesn't have the
-		correct permissions or when it lacks SSM access. Since we may have
-		multiple sessions to iterate through and the rest of the program
-		does nothing without an instance as input, this is a non-fatal error.
-	*/
-	errChan <- err
-
+	for _, i := range readyInstances[:limit] {
+		// Append our instance info to the master list
+		addInstanceInfo(i, tags[*i], readyInstancePool, session.ProfileName, *session.Session.Config.Region)
+	}
 }

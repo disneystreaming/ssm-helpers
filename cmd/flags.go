@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
@@ -76,7 +75,7 @@ func getRegionList(cmd *cobra.Command) ([]string, error) {
 		return []string{defaultRegion}, nil
 	}
 
-	return []string{}, errors.New("no region specified")
+	return []string{""}, nil
 }
 
 func getTargetList(cmd *cobra.Command) (targets []*ssm.Target, err error) {

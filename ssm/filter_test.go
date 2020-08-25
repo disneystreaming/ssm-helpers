@@ -30,7 +30,7 @@ func TestAppendSSMFilter(t *testing.T) {
 	assert.Lenf(filters, 2, "Function returned slice of size %d, expected a size of 2", len(filters))
 }
 
-func TestBuildFilters(t *testing.T) {
+func Test_buildFilters(t *testing.T) {
 	assert := assert.New(t)
 
 	// Create our filter slice
@@ -47,7 +47,7 @@ func TestBuildFilters(t *testing.T) {
 		"foo": "bar",
 	}
 
-	BuildFilters(tags, &filters)
+	buildFilters(tags, &filters)
 
 	assert.Lenf(filters, 3, "Filter slice was built incorrectly, got %d filters, expected 3", len(filters))
 }

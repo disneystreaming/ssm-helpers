@@ -10,9 +10,9 @@ func AppendSSMFilter(filters *[]*ssm.InstanceInformationStringFilter, filterToAd
 	*filters = append(*filters, filterToAdd)
 }
 
-// BuildFilters takes a map of tags (in key[value] format) and converts them into a format that is compatible
+// buildFilters takes a map of tags (in key[value] format) and converts them into a format that is compatible
 // with *ssm.InstanceInformationStringFilter, updating a provided []*ssm.InstanceInformationStringFilter object
-func BuildFilters(commonTags map[string]string, filtersList *[]*ssm.InstanceInformationStringFilter) {
+func buildFilters(commonTags map[string]string, filtersList *[]*ssm.InstanceInformationStringFilter) {
 
 	merged := make(map[string]string)
 
