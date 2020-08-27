@@ -41,5 +41,5 @@ Dependencies are managed with `go mod` for local development and package release
 
 Some special dependencies you may want to be aware of are:
   * [gomux](https://github.com/disneystreaming/gomux) library for managing tmux sessions with `ssm-session`
-  * [go-ssm-helpers](https://github.com/disneystreaming/go-ssm-helpers) library for interacting with the AWS SSM API.
+  * [go-ssm-helpers](https://github.com/disneystreaming/go-ssm-helpers) library for interacting with the AWS SSM API. **for v0.\*.\* releases**
   * [aws-session-manager-plugin](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html) The `brew install` method will install the AWS Session Manager plugin but that code is not open sourced and your computer will pull the releases directly from AWS. Updates to the plugin should PR the [homebrew-tap](https://github.com/disneystreaming/homebrew-tap/blob/master/Formula/aws-session-manager-plugin.rb#L4) repository.
