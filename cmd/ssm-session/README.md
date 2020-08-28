@@ -28,7 +28,7 @@ To use a specific profile and/or region, use the `-p (--profiles)` or `-r (--reg
 
 e.g. `-p account1,account2 -r us-east-1,us-west-2`
 
-Take careful note that if multiple regions *and* profiles are specified, `ssm-sessionb` will return results for instances across all the possible permutations.
+Take careful note that if multiple regions *and* profiles are specified, `ssm-session` will return results for instances across all the possible permutations.
 
 For example, using the flags `--profiles foo,bar,baz --regions us-east-1,us-west-2,eu-east-1` will target instances in each of the profile/region combinations:
 

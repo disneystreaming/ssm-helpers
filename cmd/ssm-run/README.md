@@ -78,8 +78,10 @@ INFO    Command(s) to be executed:
 uname > /dev/null 2>&1 
 INFO    Started invocation cda5592a-a099-4117-8863-32a88909eae6 for profile1 in us-east-1 
 INFO    Instance ID              Region          Profile         Status 
-INFO    i-12345                  us-east-1       profile1        Success 
+INFO    i-12345                  us-east-1       profile1        Success
+Linux
 INFO    i-23456                  us-east-1       profile1        Success 
+Linux
 INFO    Execution results: 2 SUCCESS, 0 FAILED
 ```
 
