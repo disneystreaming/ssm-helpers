@@ -2,7 +2,7 @@
 
 Helpers to manage you systems with [AWS Systems Manager](https://aws.amazon.com/systems-manager/) suite of management tools.
 
-![](/img/ssm-helpers.gif)
+![](img/ssm-helpers.gif)
 
 ## Tools in this repo
 
