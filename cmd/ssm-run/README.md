@@ -43,7 +43,7 @@ WARNING	No AWS region setting found. Will default to the region linked to any pr
 #### running command(s) on a single instance
 
 ```
-> ./ssm run -p 'profile1' -i i-12345 -c 'uname'
+> ssm run -p 'profile1' -i i-12345 -c 'uname'
 INFO    Command(s) to be executed:
 uname             
 INFO    Started invocation f73f2225-8fb2-4e63-ba63-6e2af54b8659 for profile1 in us-east-1 
@@ -56,7 +56,7 @@ INFO    Execution results: 1 SUCCESS, 0 FAILED
 Running multiple commands is easy; just separate your commands with semicolons (;). These commands will be executed in series, in the same console context (e.g., variables you set can be used between commands).
 
 ```
-> ./ssm run -p 'profile1' -i i-12345 -c 'uname;uname;uname'
+> ssm run -p 'profile1' -i i-12345 -c 'uname;uname;uname'
 INFO    Command(s) to be executed:
 uname
 uname
@@ -73,7 +73,7 @@ INFO    Execution results: 1 SUCCESS, 0 FAILED
 #### running command(s) on multiple instances
 
 ```
-> ./ssm run -p 'profile1' -i 'i-0879fe217fe11ad86,i-062aede5be23eef7a' -c 'uname -sm'
+> ssm run -p 'profile1' -i 'i-0879fe217fe11ad86,i-062aede5be23eef7a' -c 'uname -sm'
 INFO    Command(s) to be executed:
 uname > /dev/null 2>&1 
 INFO    Started invocation cda5592a-a099-4117-8863-32a88909eae6 for profile1 in us-east-1 
@@ -90,7 +90,7 @@ INFO    Execution results: 2 SUCCESS, 0 FAILED
 By default, if no instance or filters are specified, `ssm-run` will target all instances in the current account + region.
 
 ```
-> ./ssm run -p 'profile1' -c 'uname > /dev/null 2>&1'
+> ssm run -p 'profile1' -c 'uname > /dev/null 2>&1'
 INFO    Command(s) to be executed:
 uname > /dev/null 2>&1 
 INFO    Started invocation a0fc81ce-a256-4b19-803f-8b24e453172d for profile1 in us-east-1 
@@ -104,7 +104,7 @@ INFO    Execution results: 3 SUCCESS, 0 FAILED
 #### searching for instances in multiple accounts and/or regions
 
 ```
-> ./ssm run -p 'profile1' -c 'uname > /dev/null 2>&1' --region 'us-east-1,us-west-2'
+> ssm run -p 'profile1' -c 'uname > /dev/null 2>&1' --region 'us-east-1,us-west-2'
 INFO    Command(s) to be executed:
 uname > /dev/null 2>&1
 INFO    Started invocation b94eafc1-c9ab-4f9b-848e-c4e16beecee2 for profile1 in us-east-1
@@ -120,7 +120,7 @@ INFO    Execution results: 2 SUCCESS, 0 FAILED
 Tag-based filtering can also be applied to your search results (including if you manually specify instance names). These filters are additive, which means that each filter you provide will prune down your results to include only instances that match *all* of the provided filters.
 
 ```
-> ./ssm run -p 'profile1' -f 'app=myapp,env=prod' -c 'uname > /dev/null 2>&1' --region us-east-1
+> ssm run -p 'profile1' -f 'app=myapp,env=prod' -c 'uname > /dev/null 2>&1' --region us-east-1
 INFO    Command(s) to be executed:
 uname > /dev/null 2>&1 
 INFO    Started invocation 1a781eaf-a6fc-4cf0-8875-5ecaace29e4f for profile1 in us-east-1 

@@ -48,18 +48,18 @@ Any number of tags can be specified using multiple `-t` flags. The instance data
 
 #### connecting to a single instance
 
-`./ssm session -i i-12345`
+`ssm session -i i-12345`
 
 #### connecting to multiple instances
 
-`./ssm session -i i-12345,i-67890`
+`ssm session -i i-12345,i-67890`
 
 #### searching for instances
 
 By default, if no instance or filters are specified, `ssm session` will target all instances in the current account + region.
 
 ```
-> ./ssm session
+> ssm session
 
 INFO    Retrieved 7 usable instances.
        Instance ID   Region Profile
@@ -78,7 +78,7 @@ INFO    Retrieved 7 usable instances.
 Tag-based filtering can also be applied to your search results (including if you manually specify instance names). These filters are additive, which means that each filter you provide will prune down your results to include only instances that match *all* of the provided filters.
 
 ```
-> ./ssm session -p profile1 -f env=prod -f app=myapp
+> ssm session -p profile1 -f env=prod -f app=myapp
 
 INFO    Retrieved 6 usable instances.
        Instance ID  Region     Profile
@@ -94,7 +94,7 @@ INFO    Retrieved 6 usable instances.
 If we add those columns to the instance list using the `-t` option, we can see the effect in practice:
 
 ```
-> ./ssm session -p profile1 -f env=prod -f app=myapp -t app -t env
+> ssm session -p profile1 -f env=prod -f app=myapp -t app -t env
 
 INFO    Retrieved 6 usable instances.
        Instance ID  Region     Profile   app    env
@@ -110,7 +110,7 @@ INFO    Retrieved 6 usable instances.
 #### searching for instances in multiple accounts and/or regions
 
 ```
-> ./ssm session -p profile1 -r us-east-1,us-west-2
+> ssm session -p profile1 -r us-east-1,us-west-2
 
 INFO    Retrieved 9 usable instances.
        Instance ID          Region     Profile
