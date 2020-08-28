@@ -2,13 +2,13 @@
 
 Start a session with a single AWS instance using `--instances`.
 
-![](../../img/ssm-session-2.gif)
+![](../../img/ssm-session-1.gif)
 
 Start a session with multiple instances across `--regions` and `--profiles` based on instance tags using `--filter`, or use the interactive prompt to select instances on the fly.
 
 Note: multiple regions and accounts takes longer for API calls.
 
-![](../../img/ssm-session-1.gif)
+![](../../img/ssm-session-2.gif)
 
 ## about
 
