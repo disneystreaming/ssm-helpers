@@ -9,7 +9,7 @@ import (
 	mocks "github.com/disneystreaming/ssm-helpers/testing"
 )
 
-func TestGGetSessionInstances(t *testing.T) {
+func TestGetSessionInstances(t *testing.T) {
 	assert := assert.New(t)
 
 	// Set up our mock session and input object
