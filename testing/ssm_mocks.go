@@ -66,16 +66,16 @@ func (m *MockSSMClient) GetCommandInvocation(input *ssm.GetCommandInvocationInpu
 		status = "Pending"
 	case "bad-id":
 		return nil, awserr.New("InvalidCommandId", "InvalidCommandId", nil)
-		}
-
-		output = &ssm.GetCommandInvocationOutput{
-			InstanceId:    input.InstanceId,
-			CommandId:     input.CommandId,
-		StatusDetails: aws.String(status),
-		}
-
-		return output, nil
 	}
+
+	output = &ssm.GetCommandInvocationOutput{
+		InstanceId:    input.InstanceId,
+		CommandId:     input.CommandId,
+		StatusDetails: aws.String(status),
+	}
+
+	return output, nil
+}
 
 func (m *MockSSMClient) SendCommand(input *ssm.SendCommandInput) (output *ssm.SendCommandOutput, err error) {
 	if len(input.InstanceIds) > 0 && len(input.Targets) > 0 {
