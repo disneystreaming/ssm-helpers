@@ -159,3 +159,9 @@ func (m *MockSSMClient) DescribeInstanceInformation(input *ssm.DescribeInstanceI
 	return output, err
 
 }
+
+func (m *MockSSMClient) DescribeInstanceInformationPages(input *ssm.DescribeInstanceInformationInput, fn func(*ssm.DescribeInstanceInformationOutput, bool) bool) (err error) {
+
+	// Mock our response from the SSM API
+	return nil
+}
