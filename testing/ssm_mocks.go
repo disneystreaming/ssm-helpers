@@ -160,8 +160,25 @@ func (m *MockSSMClient) DescribeInstanceInformation(input *ssm.DescribeInstanceI
 
 }
 
-func (m *MockSSMClient) DescribeInstanceInformationPages(input *ssm.DescribeInstanceInformationInput, fn func(*ssm.DescribeInstanceInformationOutput, bool) bool) (err error) {
+func (m *MockSSMClient) DescribeInstanceInformationPages(input *ssm.DescribeInstanceInformationInput, fn func(*ssm.DescribeInstanceInformationOutput, bool) bool) error {
+	var err error = nil
+	var continueIterating bool = true
 
-	// Mock our response from the SSM API
-	return nil
+	// Grab initial case and start looping
+	output, err := m.DescribeInstanceInformation(input)
+	for err == nil && continueIterating {
+		continueIterating = fn(output, (output.NextToken == nil))
+
+		// Just keep chugging unless we are at the end of the page.
+		if output.NextToken == nil || continueIterating {
+			break
+		} else {
+			// continue until full list is consumed
+			input.SetNextToken(*output.NextToken)
+			output, err = m.DescribeInstanceInformation(input)
+		}
+
+	}
+
+	return err
 }
