@@ -18,14 +18,8 @@ func getEC2InstanceInfo(client ec2iface.EC2API, instances []*string) (output []*
 			output = append(output, reservation.Instances...)
 		}
 
-		// Last page, break out
-		if page.NextToken == nil {
-			return false
-		}
-
-		// If not, set the token in order to fetch the next page
-		diInput.SetNextToken(*page.NextToken)
-		return true
+		// If it's not the last page, continue
+		return !lastPage
 	}
 
 	// Fetch all the instances described
@@ -38,7 +32,6 @@ func getEC2InstanceInfo(client ec2iface.EC2API, instances []*string) (output []*
 
 // GetEC2InstanceTags accepts any number of instance strings and returns a populated InstanceTags{} object for each instance
 func GetEC2InstanceTags(client ec2iface.EC2API, instances []*string) (ec2Tags map[string]Tags, err error) {
-
 	instanceInfo, err := getEC2InstanceInfo(client, instances)
 	if err != nil {
 		return nil, fmt.Errorf("Error when trying to retrieve EC2 instance tags\n%v", err)
