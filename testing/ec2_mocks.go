@@ -82,7 +82,6 @@ func (m *MockEC2Client) DescribeInstancesPages(input *ec2.DescribeInstancesInput
 			input.SetNextToken(*output.NextToken)
 			output, err = m.DescribeInstances(input)
 		}
-
 	}
 
 	return err
