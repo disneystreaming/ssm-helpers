@@ -16,14 +16,8 @@ func GetSessionInstances(client ssmiface.SSMAPI, diiInput *ssm.DescribeInstanceI
 				output = append(output, instance)
 			}
 
-			// Last page, break out
-			if page.NextToken == nil {
-				return false
-			}
-
-			// If not, set the token in order to fetch the next page
-			diiInput.SetNextToken(*page.NextToken)
-			return true
+			// If it's not the last page, continue
+			return !lastPage
 		}); err != nil {
 		return nil, fmt.Errorf("Could not retrieve SSM instance info\n%v", err)
 	}

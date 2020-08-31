@@ -1,0 +1,22 @@
+name: Code Quality (gofmt, gotest)
+on: [pull_request, create]
+
+jobs:
+  build:
+    if: github.event_name == 'pull_request'
+    name: Code Quality (gofmt, gotest)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+
+      - name: Set up Go
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.13.x
+      
+      - name: Formatting (goimports)
+        run: PATH=${PATH}:`go env GOPATH`/bin make format.check
+
+      - name: Testing (gotest)
+        run: make test

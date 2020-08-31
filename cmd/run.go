@@ -95,7 +95,6 @@ func runCommand(cmd *cobra.Command, args []string) {
 		MaxErrors:      aws.String(maxErrors),
 	}
 
-
 	wg, output := sync.WaitGroup{}, invocation.ResultSafe{}
 
 	// Set up our AWS session for each permutation of profile + region and iterate over them
