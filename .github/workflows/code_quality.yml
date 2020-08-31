@@ -1,4 +1,4 @@
-name: Code Quality (gofmt, gotest
+name: Code Quality (gofmt, gotest)
 on: [pull_request, create]
 
 jobs:
