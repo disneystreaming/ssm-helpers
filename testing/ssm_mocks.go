@@ -2,6 +2,7 @@ package mocks
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -129,7 +130,7 @@ func (m *MockSSMClient) DescribeInstanceInformation(input *ssm.DescribeInstanceI
 			},
 			NextToken: aws.String("eyJNYXJrZXIiOiBudWxsLCAiYm90b190cnVuY2F0ZV9hbW91bnQiOiAxfQ=="),
 		}
-		return output, err
+		return filterDescribeInstanceInformationOutput(input, output)
 	}
 
 	output = &ssm.DescribeInstanceInformationOutput{
@@ -156,8 +157,7 @@ func (m *MockSSMClient) DescribeInstanceInformation(input *ssm.DescribeInstanceI
 		NextToken: nil,
 	}
 
-	return output, err
-
+	return filterDescribeInstanceInformationOutput(input, output)
 }
 
 func (m *MockSSMClient) DescribeInstanceInformationPages(input *ssm.DescribeInstanceInformationInput, fn func(*ssm.DescribeInstanceInformationOutput, bool) bool) error {
@@ -170,7 +170,7 @@ func (m *MockSSMClient) DescribeInstanceInformationPages(input *ssm.DescribeInst
 		continueIterating = fn(output, (output.NextToken == nil))
 
 		// Just keep chugging unless we are at the end of the page.
-		if output.NextToken == nil || continueIterating {
+		if output.NextToken == nil || !continueIterating {
 			break
 		} else {
 			// continue until full list is consumed
@@ -181,4 +181,40 @@ func (m *MockSSMClient) DescribeInstanceInformationPages(input *ssm.DescribeInst
 	}
 
 	return err
+}
+
+func filterDescribeInstanceInformationOutput(input *ssm.DescribeInstanceInformationInput, output *ssm.DescribeInstanceInformationOutput) (*ssm.DescribeInstanceInformationOutput, error) {
+	filteredOutput := []*ssm.InstanceInformation{}
+
+	for _, instance := range output.InstanceInformationList {
+		match := true
+		for _, filter := range input.Filters {
+			if !instanceMatchesFilter(*instance, *filter) {
+				match = false
+				break
+			}
+		}
+
+		if match {
+			filteredOutput = append(filteredOutput, instance)
+		}
+	}
+
+	output.InstanceInformationList = filteredOutput
+	return output, nil
+}
+
+// instanceMatchesFilter converts the instance information to its string representation
+// and then checks that that information containes atleast one value in the
+// filter. This is a hack but should be sufficient for tests.
+func instanceMatchesFilter(instance ssm.InstanceInformation, filter ssm.InstanceInformationStringFilter) bool {
+	instanceString := instance.GoString()
+
+	for _, filterValue := range filter.Values {
+		if strings.Contains(instanceString, *filterValue) {
+			return true
+		}
+	}
+
+	return false
 }

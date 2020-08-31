@@ -3,6 +3,7 @@ package instance
 import (
 	"testing"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/stretchr/testify/assert"
 
@@ -16,7 +17,22 @@ func TestGetSessionInstances(t *testing.T) {
 	mockSvc := &mocks.MockSSMClient{}
 
 	t.Run("latest agent version filter", func(t *testing.T) {
-		ssmInput := &ssm.DescribeInstanceInformationInput{}
+		ssmInput := &ssm.DescribeInstanceInformationInput{
+			Filters: []*ssm.InstanceInformationStringFilter{
+				{
+					Key:    aws.String("PingStatus"),
+					Values: aws.StringSlice([]string{"Online"}),
+				},
+				{
+					Key:    aws.String("PlatformType"),
+					Values: aws.StringSlice([]string{"Linux"}),
+				},
+				{
+					Key:    aws.String("IsLatestVersion"),
+					Values: aws.StringSlice([]string{"true"}),
+				},
+			},
+		}
 		instances, err := GetSessionInstances(mockSvc, ssmInput)
 
 		// Function should filter out any instances that are offline or not running Linux or do not have the latest agent version
@@ -25,7 +41,18 @@ func TestGetSessionInstances(t *testing.T) {
 	})
 
 	t.Run("standard instance filters", func(t *testing.T) {
-		ssmInput := &ssm.DescribeInstanceInformationInput{}
+		ssmInput := &ssm.DescribeInstanceInformationInput{
+			Filters: []*ssm.InstanceInformationStringFilter{
+				{
+					Key:    aws.String("PingStatus"),
+					Values: aws.StringSlice([]string{"Online"}),
+				},
+				{
+					Key:    aws.String("PlatformType"),
+					Values: aws.StringSlice([]string{"Linux"}),
+				},
+			},
+		}
 		instances, err := GetSessionInstances(mockSvc, ssmInput)
 
 		// Function should filter out any instances that are offline or not running Linux
