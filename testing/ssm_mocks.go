@@ -172,11 +172,11 @@ func (m *MockSSMClient) DescribeInstanceInformationPages(input *ssm.DescribeInst
 		// Just keep chugging unless we are at the end of the page.
 		if output.NextToken == nil || !continueIterating {
 			break
-		} else {
-			// continue until full list is consumed
-			input.SetNextToken(*output.NextToken)
-			output, err = m.DescribeInstanceInformation(input)
 		}
+
+		// continue until full list is consumed
+		input.SetNextToken(*output.NextToken)
+		output, err = m.DescribeInstanceInformation(input)
 
 	}
 

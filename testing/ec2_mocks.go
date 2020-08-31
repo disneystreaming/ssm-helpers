@@ -77,11 +77,11 @@ func (m *MockEC2Client) DescribeInstancesPages(input *ec2.DescribeInstancesInput
 		// Just keep chugging unless we are at the end of the page.
 		if output.NextToken == nil || !continueIterating {
 			break
-		} else {
-			// continue until full list is consumed
-			input.SetNextToken(*output.NextToken)
-			output, err = m.DescribeInstances(input)
 		}
+
+		// continue until full list is consumed
+		input.SetNextToken(*output.NextToken)
+		output, err = m.DescribeInstances(input)
 	}
 
 	return err
