@@ -16,9 +16,14 @@ func TestGetEC2InstanceTags(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 		tags, err := GetEC2InstanceTags(mockSvc, aws.StringSlice([]string{"i-123", "i-456", "i-789"}))
 
+		keys := make([]string, 0, 3)
+		for k := range tags {
+			keys = append(keys, k)
+		}
+
 		assert.NoError(err)
 		assert.Lenf(tags, 3, "Incorrect number of tag slices returned, got %d, expected 3", len(tags))
-		assert.Contains(tags, []string{"i-123", "i-456", "i-789"}, "Incorrect instance ID returned in tag slice\n%v", tags)
+		assert.ElementsMatch(keys, []string{"i-123", "i-456", "i-789"}, "Incorrect instance ID returned in tag slice\n%v", tags)
 		assert.Equal(tags["i-123"]["env"], "dev", "Incorrect tag values returned for instance i-123, got , expected env:dev and id_foo:321")
 
 	})

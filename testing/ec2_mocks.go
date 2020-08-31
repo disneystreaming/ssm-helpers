@@ -64,3 +64,25 @@ func (m *MockEC2Client) DescribeInstances(input *ec2.DescribeInstancesInput) (ou
 
 	return output, nil
 }
+
+func (m *MockEC2Client) DescribeInstancesPages(input *ec2.DescribeInstancesInput, fn func(*ec2.DescribeInstancesOutput, bool) bool) error {
+	var err error = nil
+	var continueIterating bool = true
+
+	// Grab initial case and start looping
+	output, err := m.DescribeInstances(input)
+	for err == nil && continueIterating {
+		continueIterating = fn(output, (output.NextToken == nil))
+
+		// Just keep chugging unless we are at the end of the page.
+		if output.NextToken == nil || !continueIterating {
+			break
+		}
+
+		// continue until full list is consumed
+		input.SetNextToken(*output.NextToken)
+		output, err = m.DescribeInstances(input)
+	}
+
+	return err
+}
