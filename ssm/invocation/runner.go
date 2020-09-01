@@ -52,5 +52,4 @@ func GetResult(client ssmiface.SSMAPI, commandID *string, instanceID *string, gc
 	case status != nil:
 		gci <- status
 	}
-
 }

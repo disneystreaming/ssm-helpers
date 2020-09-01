@@ -79,7 +79,8 @@ func RunInvocations(sess *session.Session, client ssmiface.SSMAPI, wg *sync.Wait
 
 	// Send our command input to SSM
 	if scOutput, err = client.SendCommand(input); err != nil {
-		sess.Logger.Errorf("Error when calling the SendCommand API for account %v in %v\n%v", sess.ProfileName, *sess.Session.Config.Region, err)
+		sess.Logger.Error("Error when calling the SendCommand API")
+		addError(results, sess, err)
 		return
 	}
 
@@ -89,7 +90,7 @@ func RunInvocations(sess *session.Session, client ssmiface.SSMAPI, wg *sync.Wait
 	// Watch status of invocation to see when it's done and we can get the output
 	for done := false; !done; time.Sleep(2 * time.Second) {
 		if done, err = checkInvocationStatus(client, commandID); err != nil {
-			sess.Logger.Error(err)
+			addError(results, sess, err)
 			return
 		}
 	}
@@ -114,7 +115,7 @@ func RunInvocations(sess *session.Session, client ssmiface.SSMAPI, wg *sync.Wait
 				case result := <-oc:
 					addInvocationResults(results, sess, result)
 				case err := <-ec:
-					sess.Logger.Error(err)
+					addError(results, sess, err)
 				}
 			}
 
@@ -126,26 +127,34 @@ func RunInvocations(sess *session.Session, client ssmiface.SSMAPI, wg *sync.Wait
 			lciInput.SetNextToken(*page.NextToken)
 			return true
 		}); err != nil {
-		sess.Logger.Error(fmt.Errorf("Error when calling ListCommandInvocations API\n%v", err))
+		sess.Logger.Error("Error when calling ListCommandInvocations API")
+		addError(results, sess, err)
 	}
-
 }
 
 func addInvocationResults(results *invocation.ResultSafe, session *session.Session, info ...*ssm.GetCommandInvocationOutput) {
 	var newResults []*invocation.Result
 	for _, v := range info {
-		var result = &invocation.Result{
+		results.Add(&invocation.Result{
 			InvocationResult: v,
 			ProfileName:      session.ProfileName,
 			Region:           *session.Session.Config.Region,
-			Status:           *v.StatusDetails,
-		}
-		newResults = append(newResults, result)
+			Status:           invocation.Status(*v.StatusDetails),
+		})
 	}
 
 	results.Lock()
 	results.InvocationResults = append(results.InvocationResults, newResults...)
 	results.Unlock()
+}
+
+func addError(results *invocation.ResultSafe, session *session.Session, err error) {
+	results.Add(&invocation.Result{
+		ProfileName: session.ProfileName,
+		Region:      *session.Session.Config.Region,
+		Status:      invocation.ClientError,
+		Error:       err,
+	})
 }
 
 // CheckInstanceReadiness iterates through a list of instances and verifies whether or not it is start-session capable. If it is, it appends the instance info to an instances.InstanceInfoSafe slice.

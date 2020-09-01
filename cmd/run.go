@@ -114,12 +114,18 @@ func runCommand(cmd *cobra.Command, args []string) {
 	// Output our results
 	log.Infof(resultFormat, "Instance ID", "Region", "Profile", "Status")
 	for _, v := range output.InvocationResults {
-		switch v.Status {
-		case "Success":
-			log.Infof(resultFormat, *v.InvocationResult.InstanceId, v.Region, v.ProfileName, *v.InvocationResult.StatusDetails)
+
+		if v.Status == invocation.ClientError {
+			log.Errorf(resultFormat, "---", v.Region, v.ProfileName, v.Status)
+			failedCounter++
+			continue
+		}
+
+		if v.Status == invocation.CommandSuccess {
+			log.Infof(resultFormat, *v.InvocationResult.InstanceId, v.Region, v.ProfileName, v.Status)
 			successCounter++
-		default:
-			log.Errorf(resultFormat, *v.InvocationResult.InstanceId, v.Region, v.ProfileName, *v.InvocationResult.StatusDetails)
+		} else {
+			log.Errorf(resultFormat, *v.InvocationResult.InstanceId, v.Region, v.ProfileName, v.Status)
 			failedCounter++
 		}
 
@@ -130,7 +136,7 @@ func runCommand(cmd *cobra.Command, args []string) {
 
 		// stderr is written back at warn if the invocation was successful, and error if not
 		if *v.InvocationResult.StandardErrorContent != "" {
-			if v.Status == "Success" {
+			if v.Status == invocation.CommandSuccess {
 				log.Warn(*v.InvocationResult.StandardErrorContent)
 			} else {
 				log.Error(*v.InvocationResult.StandardErrorContent)
