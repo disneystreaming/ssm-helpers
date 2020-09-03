@@ -31,6 +31,6 @@ COPY --from=downloader /root/.local/bin/aws /usr/local/bin/aws
 COPY --from=downloader /tmp/usr/local/sessionmanagerplugin/bin/session-manager-plugin /usr/local/sessionmanagerplugin/bin/session-manager-plugin
 RUN ln -s /usr/local/sessionmanagerplugin/bin/session-manager-plugin /usr/local/bin/session-manager-plugin
 
-COPY bin/ssm /usr/local/bin/ssm
+COPY ssm /usr/local/bin/ssm
 
 ENTRYPOINT ["/usr/local/bin/ssm"]

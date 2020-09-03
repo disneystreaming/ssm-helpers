@@ -8,7 +8,7 @@ before:
 builds:
 - id: ssm
   main: ./main.go
-  binary: bin/ssm
+  binary: ssm
   goos:
     - windows
     - darwin
