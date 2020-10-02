@@ -27,9 +27,11 @@ func newRootCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "ssm",
 		Short: "ssm is a user-friendly wrapper for the AWS CLI SSM commands",
-		Long: `A Fast and Flexible Static Site Generator built with
-					  love by spf13 and friends in Go.
-					  Complete documentation is available at http://hugo.spf13.com`,
+		Long: `ssm is a user-friendly wrapper for the AWS CLI SSM commands
+
+Complete documentation is available at https://github.com/disneystreaming/ssm-helpers
+
+`,
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			if err := setLogLevel(cmd, log); err != nil {
 				log.Fatal(err)
