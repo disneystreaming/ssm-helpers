@@ -6,12 +6,23 @@ before:
     - make test
 
 builds:
+- id: ssm_osx
+  main: ./main.go
+  binary: ssm
+  goos:
+    - darwin
+  goarch:
+    - amd64
+  env:
+    - CGO_ENABLED=1
+    - GODEBUG=netdns=cgo
+  ldflags:
+    - -s -w -X 'github.com/disneystreaming/ssm-helpers/cmd.version={{.Version}}' -X 'github.com/disneystreaming/ssm-helpers/cmd.commit={{.Commit}}'
 - id: ssm
   main: ./main.go
   binary: ssm
   goos:
     - windows
-    - darwin
     - linux
   goarch:
     - amd64
@@ -23,6 +34,7 @@ builds:
 archives:
 - builds:
   - ssm
+  - ssm_osx
   replacements:
     darwin: Darwin
     linux: Linux
