@@ -326,6 +326,12 @@ func Test_validateRunFlags(t *testing.T) {
 		assert.Error(err)
 	})
 
+	t.Run("specify more than 5 filters", func(t *testing.T) {
+		targetList := make([]*ssm.Target, 6)
+		err := validateRunFlags(cmd, nil, []string{"hostname"}, targetList)
+		assert.Error(err)
+	})
+
 	t.Run("no instances or filters specified", func(t *testing.T) {
 		err := validateRunFlags(cmd, nil, []string{"hostname"}, nil)
 		assert.Error(err)
@@ -362,6 +368,19 @@ func Test_validateSessionFlags(t *testing.T) {
 			"foo": "bar",
 		}
 		err := validateSessionFlags(cmd, instanceList, filterList)
+		assert.Error(err)
+	})
+
+	t.Run("specify more than 5 filters", func(t *testing.T) {
+		targetList := map[string]string{
+			"1": "a",
+			"2": "b",
+			"3": "c",
+			"4": "d",
+			"5": "e",
+			"6": "f",
+		}
+		err := validateSessionFlags(cmd, nil, targetList)
 		assert.Error(err)
 	})
 
