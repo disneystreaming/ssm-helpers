@@ -151,6 +151,10 @@ func validateSessionFlags(cmd *cobra.Command, instanceList []string, filterList 
 		return cmdutil.UsageError(cmd, "The --filter and --instance flags cannot be used simultaneously.")
 	}
 
+	if len(filterList) > 5 {
+		return cmdutil.UsageError(cmd, "A maximum of 5 tag filters can be specified at a time.")
+	}
+
 	return nil
 }
 
@@ -162,6 +166,10 @@ func validateRunFlags(cmd *cobra.Command, instanceList []string, commandList []s
 
 	if len(instanceList) == 0 && len(filterList) == 0 {
 		return cmdutil.UsageError(cmd, "You must supply target arguments using either the --filter or --instance flags.")
+	}
+
+	if len(filterList) > 5 {
+		return cmdutil.UsageError(cmd, "A maximum of 5 tag filters can be specified at a time.")
 	}
 
 	if len(instanceList) > 50 {
