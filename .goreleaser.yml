@@ -54,6 +54,10 @@ dockers:
     - "docker.pkg.github.com/disneystreaming/ssm-helpers/ssm:{{ .Tag }}"
     - "docker.pkg.github.com/disneystreaming/ssm-helpers/ssm:{{ .Major }}"
     - "docker.pkg.github.com/disneystreaming/ssm-helpers/ssm:{{ .Major }}.{{ .Minor }}"
+    - "ghcr.io/disneystreaming/ssm:latest"
+    - "ghcr.io/disneystreaming/ssm:{{ .Tag }}"
+    - "ghcr.io/disneystreaming/ssm:{{ .Major }}"
+    - "ghcr.io/disneystreaming/ssm:{{ .Major }}.{{ .Minor }}"
 
 nfpms:
   - license: MIT
