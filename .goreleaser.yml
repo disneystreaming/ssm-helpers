@@ -34,7 +34,7 @@ archives:
       format: zip
 
 brews:
-- github:
+- tap:
     owner: disneystreaming
     name: homebrew-ssm-helpers
   homepage: "https://github.com/disneystreaming/ssm-helpers"
