@@ -45,6 +45,7 @@ brews:
     - disneystreaming/tap/aws-session-manager-plugin
   install: |
     bin.install "ssm"
+    bin.install_symlink  bin/"ssm" => "ssm-helpers"
 
 dockers:
   - binaries:
