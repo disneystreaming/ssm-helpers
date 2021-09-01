@@ -13,11 +13,13 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/AlecAivazis/survey/v2/terminal"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/spf13/cobra"
 
 	"github.com/disneystreaming/gomux"
 
+	"github.com/disneystreaming/ssm-helpers/aws/resolver"
 	"github.com/disneystreaming/ssm-helpers/aws/session"
 	"github.com/disneystreaming/ssm-helpers/cmd/cmdutil"
 	ssmx "github.com/disneystreaming/ssm-helpers/ssm"
@@ -42,7 +44,7 @@ func newCommandSSMSession() *cobra.Command {
 
 func startSessionCommand(cmd *cobra.Command, args []string) {
 	var err error
-	var instanceList, profileList, regionList, tagList []string
+	var instanceList, addressList, profileList, regionList, tagList []string
 
 	// Get all of our CLI flag values
 	if err = cmdutil.ValidateArgs(cmd, args); err != nil {
@@ -50,6 +52,10 @@ func startSessionCommand(cmd *cobra.Command, args []string) {
 	}
 
 	if instanceList, err = cmdutil.GetFlagStringSlice(cmd, "instance"); err != nil {
+		log.Fatal(err)
+	}
+
+	if addressList, err = cmdutil.GetFlagStringSlice(cmd, "address"); err != nil {
 		log.Fatal(err)
 	}
 
@@ -90,9 +96,6 @@ func startSessionCommand(cmd *cobra.Command, args []string) {
 	// Get the number of cores available for parallelization
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	// Create our instance input object (filters, instances)
-	diiInput := ssmx.CreateSSMDescribeInstanceInput(filterList, instanceList)
-
 	// Create threadsafe pool of instance info to use for selection
 	instancePool := instance.InstanceInfoSafe{
 		AllInstances: make(map[string]instance.InstanceInfo),
@@ -108,15 +111,28 @@ func startSessionCommand(cmd *cobra.Command, args []string) {
 		go func(sess *session.Session, instancePool *instance.InstanceInfoSafe) {
 			defer wg.Done()
 
-			client := ssm.New(sess.Session)
-			sessionInstances, err := instance.GetSessionInstances(client, diiInput)
+			ssmClient := ssm.New(sess.Session)
+			ec2Client := ec2.New(sess.Session)
+			var threadLocalInstanceList []string
+			copy(threadLocalInstanceList, instanceList)
+
+			if len(addressList) > 0 {
+				hr := resolver.NewHostnameResolver(addressList)
+				ids, _ := hr.ResolveToInstanceId(ec2Client)
+				threadLocalInstanceList = append(threadLocalInstanceList, ids...)
+			}
+
+			// Create our instance input object (filters, instances)
+			diiInput := ssmx.CreateSSMDescribeInstanceInput(filterList, threadLocalInstanceList)
+
+			sessionInstances, err := instance.GetSessionInstances(ssmClient, diiInput)
 			if err != nil {
 				log.Tracef("AWS Session Parameters: %s, %s", *sess.Session.Config.Region, sess.ProfileName)
 				log.Fatal(err)
 			}
 
 			atomic.AddInt32(&totalInstances, int32(len(sessionInstances)))
-			ssmx.CheckInstanceReadiness(sess, client, sessionInstances, limitFlag, instancePool)
+			ssmx.CheckInstanceReadiness(sess, ssmClient, sessionInstances, limitFlag, instancePool)
 		}(sess, &instancePool)
 	}
 

@@ -316,6 +316,7 @@ func Test_validateRunFlags(t *testing.T) {
 	cmdutil.AddCommandFlag(cmd)
 	cmdutil.AddFilterFlag(cmd)
 	cmdutil.AddInstanceFlag(cmd)
+	cmdutil.AddHostnameFlag(cmd)
 	cmd.Execute()
 
 	instanceList := make([]string, 51)

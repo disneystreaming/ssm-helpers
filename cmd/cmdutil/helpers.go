@@ -61,6 +61,11 @@ func AddInstanceFlag(cmd *cobra.Command) {
 	cmd.Flags().StringSliceP("instance", "i", nil, "Specify what instance IDs you want to target.\nMultiple allowed, delimited by commas (e.g. --instance i-12345,i-23456)")
 }
 
+// AddsHostnameFlags adds --address to command
+func AddHostnameFlag(cmd *cobra.Command) {
+	cmd.Flags().StringSliceP("address", "a", nil, "Specify what Address or FQDN you want to target.\nMultiple allowed, delimited by commas (e.g. --address 10.240.12.6,10.240.12.7)")
+}
+
 // AddAllProfilesFlag adds --all-profiles to command
 func AddAllProfilesFlag(cmd *cobra.Command) {
 	cmd.Flags().Bool("all-profiles", false, "[USE WITH CAUTION] Parse through ~/.aws/config to target all profiles.")

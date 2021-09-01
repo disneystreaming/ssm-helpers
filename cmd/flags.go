@@ -20,6 +20,7 @@ func addBaseFlags(cmd *cobra.Command) {
 	cmdutil.AddDryRunFlag(cmd)
 	cmdutil.AddFilterFlag(cmd)
 	cmdutil.AddInstanceFlag(cmd)
+	cmdutil.AddHostnameFlag(cmd)
 	cmdutil.AddProfileFlag(cmd)
 	cmdutil.AddRegionFlag(cmd)
 }
