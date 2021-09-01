@@ -27,7 +27,7 @@ func NewHostnameResolver(addrs []string) *HostnameResolver {
 func (hr *HostnameResolver) ResolveToInstanceId(client ec2iface.EC2API) (output []string, err error) {
 	ips := make([]*string, 1)
 	for _, addr := range hr.addrs {
-		ip, err := resolveHostnameToFirst(addr)
+		ip, err := resolveToFirst(addr)
 		if err != nil {
 			return nil, fmt.Errorf("unable to resolve hostname to %v to ip", hr.addrs)
 		}
@@ -60,7 +60,7 @@ func (hr *HostnameResolver) ResolveToInstanceId(client ec2iface.EC2API) (output 
 	return output, nil
 }
 
-func resolveHostnameToFirst(addr string) (net.IP, error) {
+func resolveToFirst(addr string) (net.IP, error) {
 	if ip := net.ParseIP(addr); ip != nil {
 		return ip, nil
 	} else if ips, err := net.LookupIP(addr); err == nil {

@@ -50,20 +50,14 @@ func TestHostnameResolver(t *testing.T) {
 	logger.SetOutput(ioutil.Discard)
 
 	t.Run("test passed ip causes a short circuit", func(t *testing.T) {
-		validIp, err := resolveHostnameToFirst(examplePrivateIpAddress)
+		validIp, err := resolveToFirst(examplePrivateIpAddress)
 		assert.Nil(err)
 		assert.NotNil(validIp)
 		assert.EqualValues(validIp, net.ParseIP(examplePrivateIpAddress))
 	})
 
-	t.Run("test invalid ip throws an error", func(t *testing.T) {
-		validIp, err := resolveHostnameToFirst("127.1.4")
-		assert.NotNil(err)
-		assert.Nil(validIp)
-	})
-
 	t.Run("test passed passed hostname resolves to an IP", func(t *testing.T) {
-		validIp, err := resolveHostnameToFirst("example.com")
+		validIp, err := resolveToFirst("example.com")
 		assert.Nil(err)
 		assert.NotNil(validIp)
 	})
