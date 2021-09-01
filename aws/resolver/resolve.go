@@ -38,7 +38,7 @@ func (hr *HostnameResolver) ResolveToInstanceId(client ec2iface.EC2API) (output 
 	}
 
 	ipFilter := &ec2.Filter{}
-	ipFilter.SetName("network-interface.addresses.private-ip-address").SetValues(ips)
+	ipFilter.SetName("addresses.private-ip-address").SetValues(ips)
 
 	dniInput := &ec2.DescribeNetworkInterfacesInput{}
 	dniInput.SetFilters([]*ec2.Filter{ipFilter})
