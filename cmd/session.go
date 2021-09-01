@@ -110,13 +110,13 @@ func startSessionCommand(cmd *cobra.Command, args []string) {
 		wg.Add(1)
 		go func(sess *session.Session, instancePool *instance.InstanceInfoSafe) {
 			defer wg.Done()
-
-			ssmClient := ssm.New(sess.Session)
-			ec2Client := ec2.New(sess.Session)
 			var threadLocalInstanceList []string
 			copy(threadLocalInstanceList, instanceList)
 
+			ssmClient := ssm.New(sess.Session)
+
 			if len(addressList) > 0 {
+				ec2Client := ec2.New(sess.Session)
 				hr := resolver.NewHostnameResolver(addressList)
 				ids, _ := hr.ResolveToInstanceId(ec2Client)
 				threadLocalInstanceList = append(threadLocalInstanceList, ids...)
