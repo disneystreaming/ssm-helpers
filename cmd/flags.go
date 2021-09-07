@@ -160,12 +160,12 @@ func validateSessionFlags(cmd *cobra.Command, instanceList []string, filterList 
 }
 
 // validateRunFlags validates the usage of certain flags required by the run subcommand
-func validateRunFlags(cmd *cobra.Command, instanceList []string, commandList []string, filterList []*ssm.Target) error {
+func validateRunFlags(cmd *cobra.Command, instanceList []string, addressList []string, commandList []string, filterList []*ssm.Target) error {
 	if len(instanceList) > 0 && len(filterList) > 0 {
 		return cmdutil.UsageError(cmd, "The --filter and --instance flags cannot be used simultaneously.")
 	}
 
-	if len(instanceList) == 0 && len(filterList) == 0 {
+	if len(instanceList) == 0 && len(addressList) == 0 && len(filterList) == 0 {
 		return cmdutil.UsageError(cmd, "You must supply target arguments using either the --filter or --instance flags.")
 	}
 

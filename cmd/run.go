@@ -48,6 +48,9 @@ func runCommand(cmd *cobra.Command, args []string) {
 	if instanceList, err = cmdutil.GetFlagStringSlice(cmd, "instance"); err != nil {
 		log.Fatal(err)
 	}
+	if addressList, err = cmdutil.GetFlagStringSlice(cmd, "address"); err != nil {
+		log.Fatal(err)
+	}
 	if commandList, err = getCommandList(cmd); err != nil {
 		log.Fatal(err)
 	}
@@ -55,7 +58,7 @@ func runCommand(cmd *cobra.Command, args []string) {
 		log.Fatal(err)
 	}
 
-	if err := validateRunFlags(cmd, instanceList, commandList, targets); err != nil {
+	if err := validateRunFlags(cmd, instanceList, addressList, commandList, targets); err != nil {
 		log.Fatal(err)
 	}
 
