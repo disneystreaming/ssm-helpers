@@ -132,6 +132,8 @@ INFO    Execution results: 1 SUCCESS, 0 FAILED
 ### usage flags
 
 ```
+-a, --address strings       
+    Specify what Address or FQDN you want to target. Multiple allowed, delimited by commas (e.g. --address 10.240.12.6,10.240.12.7
 --all-profiles
 	[USE WITH CAUTION] Parse through ~/.aws/config to target all profiles.
 -c, --command string

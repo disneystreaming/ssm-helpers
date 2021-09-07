@@ -7,9 +7,11 @@ import (
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/spf13/cobra"
 
+	"github.com/disneystreaming/ssm-helpers/aws/resolver"
 	"github.com/disneystreaming/ssm-helpers/aws/session"
 	"github.com/disneystreaming/ssm-helpers/cmd/cmdutil"
 	ssmx "github.com/disneystreaming/ssm-helpers/ssm"
@@ -34,7 +36,7 @@ func newCommandSSMRun() *cobra.Command {
 
 func runCommand(cmd *cobra.Command, args []string) {
 	var err error
-	var instanceList, commandList, profileList, regionList []string
+	var instanceList, addressList, commandList, profileList, regionList []string
 	var maxConcurrency, maxErrors string
 	var targets []*ssm.Target
 
@@ -101,7 +103,18 @@ func runCommand(cmd *cobra.Command, args []string) {
 	sessionPool := session.NewPool(profileList, regionList, log)
 	for _, sess := range sessionPool.Sessions {
 		wg.Add(1)
+		var threadLocalSendCommandInput *ssm.SendCommandInput = &(*sciInput)
 		ssmClient := ssm.New(sess.Session)
+
+		if len(addressList) > 0 {
+			ec2Client := ec2.New(sess.Session)
+			hr := resolver.NewHostnameResolver(addressList)
+			ids, _ := hr.ResolveToInstanceId(ec2Client)
+			for _, id := range ids {
+				threadLocalSendCommandInput.InstanceIds = append(threadLocalSendCommandInput.InstanceIds, &id)
+			}
+		}
+
 		log.Debugf("Starting invocation targeting account %s in %s", sess.ProfileName, *sess.Session.Config.Region)
 		go ssmx.RunInvocations(sess, ssmClient, &wg, sciInput, &output)
 	}
