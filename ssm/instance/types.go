@@ -22,6 +22,7 @@ type InstanceInfo struct {
 	Region     string
 	Profile    string
 	Tags       map[string]string
+	Attributes map[string]string
 }
 
 // FormatStringSlice is used to return a strings preformatted to the correct width for selection prompts

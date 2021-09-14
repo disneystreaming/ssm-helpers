@@ -86,6 +86,11 @@ func AddTagFlag(cmd *cobra.Command) {
 	cmd.Flags().StringSliceP("tag", "t", nil, "Adds the specified tag as an additional column to be displayed during the instance selection prompt.")
 }
 
+// AddsAttributeFlag adds the --attribute flag to command.
+func AddAttributeFlag(cmd *cobra.Command) {
+	cmd.Flags().StringSliceP("attribute", "x", nil, "Adds the specified attribute as an additional column to be displayed during the instance selection prompt.")
+}
+
 // AddSessionNameFlag adds --session-name to command
 func AddSessionNameFlag(cmd *cobra.Command, defaultName string) {
 	cmd.Flags().String("session-name", defaultName, "Specify a name for the tmux session created when multiple instances are selected")

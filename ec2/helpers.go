@@ -50,3 +50,21 @@ func GetEC2InstanceTags(client ec2iface.EC2API, instances []*string) (ec2Tags ma
 
 	return ec2Tags, nil
 }
+
+// GetEC2InstanceAttributes accepts any number of instance strings and returns a populated InstanceAttributes{} object for each instance
+func GetEC2InstanceAttributes(client ec2iface.EC2API, instances []*string) (ec2Attributes map[string]map[string]string, err error) {
+	instanceInfo, err := getEC2InstanceInfo(client, instances)
+	if err != nil {
+		return nil, fmt.Errorf("Error when trying to retrieve EC2 instance tags\n%v", err)
+	}
+
+	ec2Attributes = make(map[string]map[string]string)
+	for _, i := range instanceInfo {
+		attributeMap := make(map[string]string)
+
+		attributeMap["VpcId"] = *i.VpcId
+		ec2Attributes[*i.InstanceId] = attributeMap
+	}
+
+	return ec2Attributes, nil
+}

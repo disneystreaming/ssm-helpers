@@ -39,7 +39,7 @@ func CreateSSMDescribeInstanceInput(filters map[string]string, instances CommaSl
 	return ssmInput
 }
 
-func addInstanceInfo(instanceID *string, tags map[string]string, instancePool *instance.InstanceInfoSafe, profile string, region string) {
+func addInstanceInfo(instanceID *string, tags map[string]string, attributes map[string]string, instancePool *instance.InstanceInfoSafe, profile string, region string) {
 	instancePool.Lock()
 	// If the instance is good, append its info to the master list
 	instancePool.AllInstances[*instanceID] = instance.InstanceInfo{
@@ -47,6 +47,7 @@ func addInstanceInfo(instanceID *string, tags map[string]string, instancePool *i
 		Profile:    profile,
 		Region:     region,
 		Tags:       tags,
+		Attributes: attributes,
 	}
 	instancePool.Unlock()
 }
@@ -188,6 +189,7 @@ func CheckInstanceReadiness(session *session.Session, client ssmiface.SSMAPI, in
 	// If the instance is good, let's get the tags to display during instance selection
 	ec2Client := ec2.New(session.Session)
 	tags, err := ec2helpers.GetEC2InstanceTags(ec2Client, ec2Instances)
+	attributes, err := ec2helpers.GetEC2InstanceAttributes(ec2Client, ec2Instances)
 	if err != nil {
 		session.Logger.Error(err)
 	}
@@ -198,6 +200,6 @@ func CheckInstanceReadiness(session *session.Session, client ssmiface.SSMAPI, in
 
 	for _, i := range readyInstances[:limit] {
 		// Append our instance info to the master list
-		addInstanceInfo(i, tags[*i], readyInstancePool, session.ProfileName, *session.Session.Config.Region)
+		addInstanceInfo(i, tags[*i], attributes[*i], readyInstancePool, session.ProfileName, *session.Session.Config.Region)
 	}
 }

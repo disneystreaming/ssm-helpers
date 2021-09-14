@@ -34,6 +34,7 @@ func addRunFlags(cmd *cobra.Command) {
 
 func addSessionFlags(cmd *cobra.Command) {
 	cmdutil.AddTagFlag(cmd)
+	cmdutil.AddAttributeFlag(cmd)
 	cmdutil.AddSessionNameFlag(cmd, "ssm-session")
 	cmdutil.AddLimitFlag(cmd, 10, "Set a limit for the number of instance results returned per profile/region combination.")
 }

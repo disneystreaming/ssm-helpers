@@ -39,12 +39,14 @@ func TestAddInstanceInfo(t *testing.T) {
 		"bar": "2",
 	}
 
+	attributesStruct := make(map[string]string)
+
 	// Initialize our mutex-safe map
 	ip := &instance.InstanceInfoSafe{
 		AllInstances: map[string]instance.InstanceInfo{},
 	}
 
-	addInstanceInfo(aws.String("i-123"), tagStruct, ip, "testprofile", "us-east-1")
+	addInstanceInfo(aws.String("i-123"), tagStruct, attributesStruct, ip, "testprofile", "us-east-1")
 
 	assert.Equalf(
 		ip.AllInstances["i-123"].InstanceID, "i-123",
