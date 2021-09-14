@@ -162,4 +162,6 @@ INFO    Retrieved 9 usable instances.
         Specify a name for the tmux session created when multiple instances are selected (default "ssm-session")
     -t, --tag strings
         Adds the specified tag as an additional column to be displayed during the instance selection prompt.
+    --attributes strings
+        Adds the specified attribute as an additional column to be displayed during the instance selection prompt.
 ```
