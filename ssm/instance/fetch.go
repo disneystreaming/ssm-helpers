@@ -12,9 +12,7 @@ func GetSessionInstances(client ssmiface.SSMAPI, diiInput *ssm.DescribeInstanceI
 	if err = client.DescribeInstanceInformationPages(
 		diiInput,
 		func(page *ssm.DescribeInstanceInformationOutput, lastPage bool) bool {
-			for _, instance := range page.InstanceInformationList {
-				output = append(output, instance)
-			}
+			output = append(output, page.InstanceInformationList...)
 
 			// If it's not the last page, continue
 			return !lastPage
