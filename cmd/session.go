@@ -324,7 +324,8 @@ func addInstanceToTmuxWindow(tmuxWindow *gomux.Window, profile string, region st
 
 func startSelectionPrompt(instances *instance.InstanceInfoSafe, totalInstances int32, tags, attributes ssmx.ListSlice) (selectedInstances []instance.InstanceInfo, err error) {
 	instanceIDList := []string{}
-	promptList := instances.FormatStringSlice([]string(tags)...)
+	fields := append([]string(tags), []string(attributes)...)
+	promptList := instances.FormatStringSlice(fields...)
 	fmt.Println("      ", promptList[0])
 
 	prompt := &survey.MultiSelect{
