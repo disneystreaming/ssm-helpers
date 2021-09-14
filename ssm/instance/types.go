@@ -52,10 +52,8 @@ func (i *InstanceInfo) FormatString(includeTags ...string) string {
 	// Formatted string will always contain at least base info
 	formattedString := fmt.Sprintf("%s\t%s\t%s\t", i.InstanceID, i.Region, i.Profile)
 
-	if includeTags != nil {
-		for _, v := range includeTags {
-			formattedString = fmt.Sprintf("%s%s\t", formattedString, i.Tags[v])
-		}
+	for _, v := range includeTags {
+		formattedString = fmt.Sprintf("%s%s\t", formattedString, i.Tags[v])
 	}
 
 	return formattedString
