@@ -21,8 +21,8 @@ type InstanceInfo struct {
 	InstanceID string
 	Region     string
 	Profile    string
+	VpcId      string
 	Tags       map[string]string
-	Attributes map[string]string
 }
 
 // FormatStringSlice is used to return a strings preformatted to the correct width for selection prompts
@@ -53,12 +53,7 @@ func (i *InstanceInfo) FormatString(includeFields ...string) string {
 	// Formatted string will always contain at least base info
 	formattedString := fmt.Sprintf("%s\t%s\t%s\t", i.InstanceID, i.Region, i.Profile)
 	fields := i.Tags
-
-	for k, v := range i.Attributes {
-		if _, prs := fields[k]; !prs {
-			fields[k] = v
-		}
-	}
+	fields["VpcId"] = i.VpcId
 
 	for _, v := range includeFields {
 		formattedString = fmt.Sprintf("%s%s\t", formattedString, fields[v])

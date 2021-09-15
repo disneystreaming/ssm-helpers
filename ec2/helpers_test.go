@@ -34,7 +34,7 @@ func TestGetEC2InstanceInfo(t *testing.T) {
 	mockSvc := &mocks.MockEC2Client{}
 
 	t.Run("get instance info from IDs", func(t *testing.T) {
-		info, err := getEC2InstanceInfo(mockSvc,
+		info, err := GetEC2InstanceInfo(mockSvc,
 			aws.StringSlice([]string{"i-123", "i-456", "i-789"}))
 
 		assert.Lenf(info, 3, "Incorrect number of instances returned, got %d, expected 3", len(info))
