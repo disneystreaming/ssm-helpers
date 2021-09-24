@@ -128,6 +128,8 @@ INFO    Retrieved 9 usable instances.
 ### usage flags
 
 ```
+    -a, --address strings       
+        Specify what Address or FQDN you want to target. Multiple allowed, delimited by commas (e.g. --address 10.240.12.6,10.240.12.7)
     --all-profiles
         [USE WITH CAUTION] Parse through ~/.aws/config to target all profiles.
     --dry-run
@@ -160,4 +162,6 @@ INFO    Retrieved 9 usable instances.
         Specify a name for the tmux session created when multiple instances are selected (default "ssm-session")
     -t, --tag strings
         Adds the specified tag as an additional column to be displayed during the instance selection prompt.
+    --attributes strings
+        Adds the specified attribute as an additional column to be displayed during the instance selection prompt.
 ```

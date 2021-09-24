@@ -21,11 +21,12 @@ type InstanceInfo struct {
 	InstanceID string
 	Region     string
 	Profile    string
+	VpcId      string
 	Tags       map[string]string
 }
 
 // FormatStringSlice is used to return a strings preformatted to the correct width for selection prompts
-func (i *InstanceInfoSafe) FormatStringSlice(includeTags ...string) (outSlice []string) {
+func (i *InstanceInfoSafe) FormatStringSlice(includeFields ...string) (outSlice []string) {
 	stringBuffer := new(bytes.Buffer)
 
 	// Set up our tabwriter to nicely space our output
@@ -33,13 +34,13 @@ func (i *InstanceInfoSafe) FormatStringSlice(includeTags ...string) (outSlice []
 
 	// Set up our header string
 	headerString := "Instance ID\tRegion\tProfile\t"
-	for _, tagName := range includeTags {
-		headerString = fmt.Sprintf("%s%s\t", headerString, tagName)
+	for _, fieldName := range includeFields {
+		headerString = fmt.Sprintf("%s%s\t", headerString, fieldName)
 	}
 	fmt.Fprintf(tw, "%s\n", headerString)
 
 	for _, v := range i.AllInstances {
-		fmt.Fprintf(tw, "%v\n", v.FormatString(includeTags...))
+		fmt.Fprintf(tw, "%v\n", v.FormatString(includeFields...))
 	}
 
 	tw.Flush()
@@ -48,14 +49,14 @@ func (i *InstanceInfoSafe) FormatStringSlice(includeTags ...string) (outSlice []
 }
 
 // FormatString returns a string with various information about a given instance
-func (i *InstanceInfo) FormatString(includeTags ...string) string {
+func (i *InstanceInfo) FormatString(includeFields ...string) string {
 	// Formatted string will always contain at least base info
 	formattedString := fmt.Sprintf("%s\t%s\t%s\t", i.InstanceID, i.Region, i.Profile)
+	fields := i.Tags
+	fields["VpcId"] = i.VpcId
 
-	if includeTags != nil {
-		for _, v := range includeTags {
-			formattedString = fmt.Sprintf("%s%s\t", formattedString, i.Tags[v])
-		}
+	for _, v := range includeFields {
+		formattedString = fmt.Sprintf("%s%s\t", formattedString, fields[v])
 	}
 
 	return formattedString

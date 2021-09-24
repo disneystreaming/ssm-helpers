@@ -7,7 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 )
 
-func getEC2InstanceInfo(client ec2iface.EC2API, instances []*string) (output []*ec2.Instance, err error) {
+func GetEC2InstanceInfo(client ec2iface.EC2API, instances []*string) (output []*ec2.Instance, err error) {
 	// Set up our DI input object
 	diInput := &ec2.DescribeInstancesInput{
 		InstanceIds: instances,
@@ -32,7 +32,7 @@ func getEC2InstanceInfo(client ec2iface.EC2API, instances []*string) (output []*
 
 // GetEC2InstanceTags accepts any number of instance strings and returns a populated InstanceTags{} object for each instance
 func GetEC2InstanceTags(client ec2iface.EC2API, instances []*string) (ec2Tags map[string]Tags, err error) {
-	instanceInfo, err := getEC2InstanceInfo(client, instances)
+	instanceInfo, err := GetEC2InstanceInfo(client, instances)
 	if err != nil {
 		return nil, fmt.Errorf("Error when trying to retrieve EC2 instance tags\n%v", err)
 	}

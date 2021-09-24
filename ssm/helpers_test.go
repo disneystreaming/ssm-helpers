@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/disneystreaming/ssm-helpers/ssm/instance"
@@ -33,10 +34,27 @@ func TestCreateSSMDescribeInstanceInput(t *testing.T) {
 func TestAddInstanceInfo(t *testing.T) {
 	assert := assert.New(t)
 
-	// Create our tag data
-	tagStruct := map[string]string{
-		"foo": "1",
-		"bar": "2",
+	id := "i-123"
+	tags := []*ec2.Tag{
+		{
+			Key:   aws.String("foo"),
+			Value: aws.String("1"),
+		},
+		{
+			Key:   aws.String("bar"),
+			Value: aws.String("2"),
+		},
+	}
+
+	cleanedTags := make(map[string]string)
+	for _, tag := range tags {
+		cleanedTags[*tag.Key] = *tag.Value
+	}
+
+	dummyInstance := ec2.Instance{
+		InstanceId: aws.String(id),
+		Tags:       tags,
+		VpcId:      aws.String("vpc-123"),
 	}
 
 	// Initialize our mutex-safe map
@@ -44,14 +62,14 @@ func TestAddInstanceInfo(t *testing.T) {
 		AllInstances: map[string]instance.InstanceInfo{},
 	}
 
-	addInstanceInfo(aws.String("i-123"), tagStruct, ip, "testprofile", "us-east-1")
+	addInstanceInfo(aws.String(id), dummyInstance, ip, "testprofile", "us-east-1")
 
 	assert.Equalf(
-		ip.AllInstances["i-123"].InstanceID, "i-123",
-		"Instance info object returned wrong instance ID, got %s, expected 'i-123'",
-		ip.AllInstances["i-123"].InstanceID,
+		ip.AllInstances[id].InstanceID, id,
+		"Instance info object returned wrong instance ID, got %s, expected '%s'",
+		ip.AllInstances[id].InstanceID, id,
 	)
 
-	assert.True(reflect.DeepEqual(ip.AllInstances["i-123"].Tags, tagStruct))
+	assert.True(reflect.DeepEqual(ip.AllInstances[id].Tags, cleanedTags))
 
 }

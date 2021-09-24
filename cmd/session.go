@@ -13,11 +13,13 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/AlecAivazis/survey/v2/terminal"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/spf13/cobra"
 
 	"github.com/disneystreaming/gomux"
 
+	"github.com/disneystreaming/ssm-helpers/aws/resolver"
 	"github.com/disneystreaming/ssm-helpers/aws/session"
 	"github.com/disneystreaming/ssm-helpers/cmd/cmdutil"
 	ssmx "github.com/disneystreaming/ssm-helpers/ssm"
@@ -42,7 +44,7 @@ func newCommandSSMSession() *cobra.Command {
 
 func startSessionCommand(cmd *cobra.Command, args []string) {
 	var err error
-	var instanceList, profileList, regionList, tagList []string
+	var instanceList, addressList, profileList, regionList, tagList, attributeList []string
 
 	// Get all of our CLI flag values
 	if err = cmdutil.ValidateArgs(cmd, args); err != nil {
@@ -50,6 +52,10 @@ func startSessionCommand(cmd *cobra.Command, args []string) {
 	}
 
 	if instanceList, err = cmdutil.GetFlagStringSlice(cmd, "instance"); err != nil {
+		log.Fatal(err)
+	}
+
+	if addressList, err = cmdutil.GetFlagStringSlice(cmd, "address"); err != nil {
 		log.Fatal(err)
 	}
 
@@ -71,6 +77,9 @@ func startSessionCommand(cmd *cobra.Command, args []string) {
 	if tagList, err = cmdutil.GetFlagStringSlice(cmd, "tag"); err != nil {
 		log.Fatal(err)
 	}
+	if attributeList, err = cmdutil.GetFlagStringSlice(cmd, "attribute"); err != nil {
+		log.Fatal(err)
+	}
 
 	var dryRunFlag bool
 	if dryRunFlag, err = cmdutil.GetFlagBool(cmd, "dry-run"); err != nil {
@@ -90,9 +99,6 @@ func startSessionCommand(cmd *cobra.Command, args []string) {
 	// Get the number of cores available for parallelization
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	// Create our instance input object (filters, instances)
-	diiInput := ssmx.CreateSSMDescribeInstanceInput(filterList, instanceList)
-
 	// Create threadsafe pool of instance info to use for selection
 	instancePool := instance.InstanceInfoSafe{
 		AllInstances: make(map[string]instance.InstanceInfo),
@@ -107,16 +113,29 @@ func startSessionCommand(cmd *cobra.Command, args []string) {
 		wg.Add(1)
 		go func(sess *session.Session, instancePool *instance.InstanceInfoSafe) {
 			defer wg.Done()
+			var threadLocalInstanceList []string
+			copy(threadLocalInstanceList, instanceList)
 
-			client := ssm.New(sess.Session)
-			sessionInstances, err := instance.GetSessionInstances(client, diiInput)
+			ssmClient := ssm.New(sess.Session)
+
+			if len(addressList) > 0 {
+				ec2Client := ec2.New(sess.Session)
+				hr := resolver.NewHostnameResolver(addressList)
+				ids, _ := hr.ResolveToInstanceId(ec2Client)
+				threadLocalInstanceList = append(threadLocalInstanceList, ids...)
+			}
+
+			// Create our instance input object (filters, instances)
+			diiInput := ssmx.CreateSSMDescribeInstanceInput(filterList, threadLocalInstanceList)
+
+			sessionInstances, err := instance.GetSessionInstances(ssmClient, diiInput)
 			if err != nil {
 				log.Tracef("AWS Session Parameters: %s, %s", *sess.Session.Config.Region, sess.ProfileName)
 				log.Fatal(err)
 			}
 
 			atomic.AddInt32(&totalInstances, int32(len(sessionInstances)))
-			ssmx.CheckInstanceReadiness(sess, client, sessionInstances, limitFlag, instancePool)
+			ssmx.CheckInstanceReadiness(sess, ssmClient, sessionInstances, limitFlag, instancePool)
 		}(sess, &instancePool)
 	}
 
@@ -151,7 +170,7 @@ func startSessionCommand(cmd *cobra.Command, args []string) {
 		}
 	} else {
 		// If -i was not specified, go to a selection prompt before starting sessions
-		selectedInstances, err := startSelectionPrompt(&instancePool, totalInstances, tagList)
+		selectedInstances, err := startSelectionPrompt(&instancePool, totalInstances, tagList, attributeList)
 		if err != nil {
 			if err == terminal.InterruptErr {
 				log.Info("Instance selection interrupted.")
@@ -303,9 +322,10 @@ func addInstanceToTmuxWindow(tmuxWindow *gomux.Window, profile string, region st
 	return tPane.Exec(fmt.Sprintf("aws ssm start-session --profile %s --region %s --target %s", profile, region, instanceID))
 }
 
-func startSelectionPrompt(instances *instance.InstanceInfoSafe, totalInstances int32, tags ssmx.ListSlice) (selectedInstances []instance.InstanceInfo, err error) {
+func startSelectionPrompt(instances *instance.InstanceInfoSafe, totalInstances int32, tags, attributes ssmx.ListSlice) (selectedInstances []instance.InstanceInfo, err error) {
 	instanceIDList := []string{}
-	promptList := instances.FormatStringSlice([]string(tags)...)
+	fields := append([]string(tags), []string(attributes)...)
+	promptList := instances.FormatStringSlice(fields...)
 	fmt.Println("      ", promptList[0])
 
 	prompt := &survey.MultiSelect{

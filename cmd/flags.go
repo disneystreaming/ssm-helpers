@@ -20,6 +20,7 @@ func addBaseFlags(cmd *cobra.Command) {
 	cmdutil.AddDryRunFlag(cmd)
 	cmdutil.AddFilterFlag(cmd)
 	cmdutil.AddInstanceFlag(cmd)
+	cmdutil.AddHostnameFlag(cmd)
 	cmdutil.AddProfileFlag(cmd)
 	cmdutil.AddRegionFlag(cmd)
 }
@@ -33,6 +34,7 @@ func addRunFlags(cmd *cobra.Command) {
 
 func addSessionFlags(cmd *cobra.Command) {
 	cmdutil.AddTagFlag(cmd)
+	cmdutil.AddAttributeFlag(cmd)
 	cmdutil.AddSessionNameFlag(cmd, "ssm-session")
 	cmdutil.AddLimitFlag(cmd, 10, "Set a limit for the number of instance results returned per profile/region combination.")
 }
@@ -159,12 +161,12 @@ func validateSessionFlags(cmd *cobra.Command, instanceList []string, filterList 
 }
 
 // validateRunFlags validates the usage of certain flags required by the run subcommand
-func validateRunFlags(cmd *cobra.Command, instanceList []string, commandList []string, filterList []*ssm.Target) error {
+func validateRunFlags(cmd *cobra.Command, instanceList []string, addressList []string, commandList []string, filterList []*ssm.Target) error {
 	if len(instanceList) > 0 && len(filterList) > 0 {
 		return cmdutil.UsageError(cmd, "The --filter and --instance flags cannot be used simultaneously.")
 	}
 
-	if len(instanceList) == 0 && len(filterList) == 0 {
+	if len(instanceList) == 0 && len(addressList) == 0 && len(filterList) == 0 {
 		return cmdutil.UsageError(cmd, "You must supply target arguments using either the --filter or --instance flags.")
 	}
 

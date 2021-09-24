@@ -316,39 +316,40 @@ func Test_validateRunFlags(t *testing.T) {
 	cmdutil.AddCommandFlag(cmd)
 	cmdutil.AddFilterFlag(cmd)
 	cmdutil.AddInstanceFlag(cmd)
+	cmdutil.AddHostnameFlag(cmd)
 	cmd.Execute()
 
 	instanceList := make([]string, 51)
 
 	t.Run("try to use --filter and --instance flags", func(t *testing.T) {
 		targetList := make([]*ssm.Target, 2)
-		err := validateRunFlags(cmd, instanceList, []string{"hostname"}, targetList)
+		err := validateRunFlags(cmd, instanceList, nil, []string{"hostname"}, targetList)
 		assert.Error(err)
 	})
 
 	t.Run("specify more than 5 filters", func(t *testing.T) {
 		targetList := make([]*ssm.Target, 6)
-		err := validateRunFlags(cmd, nil, []string{"hostname"}, targetList)
+		err := validateRunFlags(cmd, nil, nil, []string{"hostname"}, targetList)
 		assert.Error(err)
 	})
 
 	t.Run("no instances or filters specified", func(t *testing.T) {
-		err := validateRunFlags(cmd, nil, []string{"hostname"}, nil)
+		err := validateRunFlags(cmd, nil, nil, []string{"hostname"}, nil)
 		assert.Error(err)
 	})
 
 	t.Run(">50 specified instances", func(t *testing.T) {
-		err := validateRunFlags(cmd, instanceList, []string{"hostname"}, nil)
+		err := validateRunFlags(cmd, instanceList, nil, []string{"hostname"}, nil)
 		assert.Error(err)
 	})
 
 	t.Run("no command specified", func(t *testing.T) {
-		err := validateRunFlags(cmd, []string{"myInstance"}, nil, nil)
+		err := validateRunFlags(cmd, []string{"myInstance"}, nil, nil, nil)
 		assert.Error(err)
 	})
 
 	t.Run("valid flag combination", func(t *testing.T) {
-		err := validateRunFlags(cmd, []string{"myInstance"}, []string{"hostname"}, nil)
+		err := validateRunFlags(cmd, []string{"myInstance"}, nil, []string{"hostname"}, nil)
 		assert.NoError(err)
 	})
 }
