@@ -48,7 +48,7 @@ brews:
     bin.install_symlink  bin/"ssm" => "ssm-helpers"
 
 dockers:
-  - binaries:
+  - ids:
     - ssm
     goos: linux
     dockerfile: Dockerfile
