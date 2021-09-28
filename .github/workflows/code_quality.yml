@@ -20,3 +20,9 @@ jobs:
 
       - name: Testing (gotest)
         run: make test
+
+      - name: GoReleaser Config Check
+        uses: goreleaser/goreleaser-action@v1
+        with:
+          version: latest
+          args: check -q
