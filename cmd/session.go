@@ -114,7 +114,7 @@ func startSessionCommand(cmd *cobra.Command, args []string) {
 		go func(sess *session.Session, instancePool *instance.InstanceInfoSafe) {
 			defer wg.Done()
 			var threadLocalInstanceList []string
-			copy(threadLocalInstanceList, instanceList)
+			threadLocalInstanceList = append(threadLocalInstanceList, instanceList...)
 
 			ssmClient := ssm.New(sess.Session)
 
