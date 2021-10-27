@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws/session"
 	log "github.com/sirupsen/logrus"
 
@@ -48,9 +49,10 @@ func stsCredentialsSet() bool {
 
 func newSession(profile string, region string, logger *log.Logger) *Session {
 	options := session.Options{
-		Config:            *config.NewDefaultConfig(region),
-		Profile:           profile,
-		SharedConfigState: session.SharedConfigEnable,
+		Config:                  *config.NewDefaultConfig(region),
+		Profile:                 profile,
+		SharedConfigState:       session.SharedConfigEnable,
+		AssumeRoleTokenProvider: stscreds.StdinTokenProvider,
 	}
 
 	session, err := session.NewSessionWithOptions(options)
