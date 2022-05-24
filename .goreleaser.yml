@@ -41,6 +41,7 @@ brews:
   description: "Help manage systems with AWS Systems Manager with management helpers."
   folder: Formula
   dependencies:
+    - tmux
     - awscli
     - disneystreaming/tap/aws-session-manager-plugin
   install: |
