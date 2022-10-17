@@ -8,6 +8,8 @@ import (
 )
 
 func GetEC2InstanceInfo(client ec2iface.EC2API, instances []*string) (output []*ec2.Instance, err error) {
+	keyedInstances := make(map[string]*ec2.Instance)
+
 	// Set up our DI input object
 	diInput := &ec2.DescribeInstancesInput{
 		InstanceIds: instances,
@@ -15,7 +17,10 @@ func GetEC2InstanceInfo(client ec2iface.EC2API, instances []*string) (output []*
 
 	describeInstancesPager := func(page *ec2.DescribeInstancesOutput, lastPage bool) bool {
 		for _, reservation := range page.Reservations {
-			output = append(output, reservation.Instances...)
+			for _, i := range reservation.Instances {
+				keyedInstances[*i.InstanceId] = i
+			}
+
 		}
 
 		// If it's not the last page, continue
@@ -25,6 +30,10 @@ func GetEC2InstanceInfo(client ec2iface.EC2API, instances []*string) (output []*
 	// Fetch all the instances described
 	if err = client.DescribeInstancesPages(diInput, describeInstancesPager); err != nil {
 		return nil, fmt.Errorf("Could not describe EC2 instances\n%v", err)
+	}
+
+	for _, i := range instances {
+		output = append(output, keyedInstances[*i])
 	}
 
 	return output, nil
