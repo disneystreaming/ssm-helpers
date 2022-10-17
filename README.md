@@ -79,5 +79,5 @@ make check
 
 Each subcommand lives in the `cmd/<command-name>` folder and is written in go.  
 They use the [aws-sdk-go](https://github.com/aws/aws-sdk-go) as well as our own fork of [gomux](https://github.com/disneystreaming/gomux).  
-The [go-ssm-helpers](https://github.com/disneystreaming/go-ssm-helpers) library has been integrated into this project and will be archived.  
+The [go-ssmhelpers](https://github.com/disneystreaming/go-ssmhelpers) library has been integrated into this project and will be archived.  
 If you find bugs or would like to suggest improvements please use GitHub issues on the appropriate repo.
