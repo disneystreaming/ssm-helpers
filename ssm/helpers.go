@@ -199,17 +199,12 @@ func CheckInstanceReadiness(session *session.Session, client ssmiface.SSMAPI, in
 		session.Logger.Error(err)
 	}
 
-	keyedInstances := make(map[string]ec2.Instance)
-	for _, i := range instanceInfo {
-		keyedInstances[*i.InstanceId] = *i
-	}
-
 	if limit > len(readyInstances) {
 		limit = len(readyInstances)
 	}
 
-	for _, i := range readyInstances[:limit] {
+	for idx, i := range readyInstances[:limit] {
 		// Append our instance info to the master list
-		addInstanceInfo(i, keyedInstances[*i], readyInstancePool, session.ProfileName, *session.Session.Config.Region)
+		addInstanceInfo(i, *instanceInfo[idx], readyInstancePool, session.ProfileName, *session.Session.Config.Region)
 	}
 }
